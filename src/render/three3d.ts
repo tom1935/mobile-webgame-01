@@ -3,14 +3,16 @@
 //
 // Quality tiers: 'high' = shadows 2048 + MSAA + bloom + depth of field, 'low' = plain render.
 // ?quality=high|low forces a tier; otherwise it starts high and drops to low if the frame rate is poor.
+// refShot (?scene=ref): camera and scenery blockout of docs/reference/concept-beach.webp, for comparison.
 import * as THREE from 'three';
 import type { World } from '../sim/types.ts';
 import { loadManifest } from './scene/assets.ts';
 import { createActors, type Actors } from './scene/actors.ts';
 import { createCourt } from './scene/court.ts';
-import { createEnvironment, type Environment } from './scene/environment.ts';
+import { createEnvironment, SEA_LEVEL, type Environment } from './scene/environment.ts';
 import { createPost, type Post } from './scene/post.ts';
 import { createProps } from './scene/props.ts';
+import { applyRefCamera, createRefBlockout } from './scene/ref-shot.ts';
 import type { ProbeItem, Renderer } from './types.ts';
 
 export type Quality = 'high' | 'low';
@@ -20,7 +22,12 @@ const VFOV = 30;
 const CAM_HEIGHT = 2.3;
 const LOOK_HEIGHT = 3.7;
 
-export function createThreeRenderer(canvas: HTMLCanvasElement, world: World, forced: Quality | null): Renderer {
+export function createThreeRenderer(
+  canvas: HTMLCanvasElement,
+  world: World,
+  forced: Quality | null,
+  refShot = false,
+): Renderer {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
@@ -42,7 +49,13 @@ export function createThreeRenderer(canvas: HTMLCanvasElement, world: World, for
   let post: Post | null = null;
   const actors: Actors = createActors(scene, world);
   createCourt(scene);
-  const props = createProps(scene, (ok) => done('props', ok));
+  let props: { update(t: number): void } = { update() {} };
+  if (refShot) {
+    createRefBlockout(scene, SEA_LEVEL);
+    done('props', true);
+  } else {
+    props = createProps(scene, (ok) => done('props', ok));
+  }
   loadManifest().then((m) => {
     if (m.sky) pending.add('sky');
     if (m.sand) pending.add('sand');
@@ -98,6 +111,13 @@ export function createThreeRenderer(canvas: HTMLCanvasElement, world: World, for
       canvas.style.width = `${w}px`;
       canvas.style.height = `${h}px`;
       camera.aspect = w / h;
+      if (refShot) {
+        applyRefCamera(camera);
+        post?.setFocus(20);
+        applyQuality();
+        post?.setFocus(20);
+        return;
+      }
       // Fit the court width at the human player's depth
       const hfov = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(VFOV / 2)) * camera.aspect);
       const dist = VIEW_HALF_WIDTH / Math.tan(hfov / 2);
@@ -167,6 +187,7 @@ export function createThreeRenderer(canvas: HTMLCanvasElement, world: World, for
     info() {
       return {
         view: '3d',
+        scene: refShot ? 'ref' : 'game',
         quality,
         forced: forced !== null,
         fps: Math.round(fps),

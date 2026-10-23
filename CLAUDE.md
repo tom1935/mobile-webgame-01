@@ -28,6 +28,7 @@
 - `npm test`（= `node --test "tests/*.test.ts"`）: ロジック・ジェスチャのテスト
 - `npm run e2e` : スマホ横向きChromiumに実タッチを送り `window.__game` で結果を確認（グローバルの tsc / playwright を使用）。既定は3D表示（低画質）、`node tests-e2e/play.mjs --2d` で2D表示
 - ブラウザで `window.__game.renderInfo()` : 表示モード・画質・FPS・素材の読み込み状況
+- `node tools/ref-compare.mjs`（`--quality high` も可）: 参考画像と同じカメラ（`?scene=ref`）で描画し、`.ref-compare/` に並べた図・重ねた図・白黒の図を出す。背景づくりはこれで参考画像と比べながら進める
 - ブラウザで `?debug=1` : 座標オーバーレイと `window.__game`（getState / step / input / getLog / ascii / probe / exportReplay）
 - 調整値は `src/sim/params.ts` の `P`（実行時に変更可）。ブラウザは `?tune=1` のスライダー、CLIは `--param KEY=VAL`。値は使う時に `P.X` で読む（モジュール定数にコピーしない）
 - 長いログを読む調査はサブエージェントに任せ、結論だけ受け取る

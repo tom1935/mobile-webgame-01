@@ -10,7 +10,7 @@ import type { Manifest } from './assets.ts';
 /** Where we want the sun: high, behind the court and to the right, so the sea glitters and shadows fall toward the camera. */
 export const SUN_DIR = new THREE.Vector3(0.5, 0.82, -0.28).normalize();
 
-const SEA_LEVEL = -0.12;
+export const SEA_LEVEL = -0.12;
 const SHORE_Z = -11; // sand starts sloping into the sea behind the court
 
 export interface Environment {
