@@ -29,6 +29,9 @@ export interface Player {
   lastJumpFrame: number;
   hangFrames: number; // > 0 while floating at the top of a jump
   hangUsed: boolean;
+  /** Last swing (flick or bot hit), for animation even when the ball is missed. */
+  lastSwingFrame: number;
+  lastSwingKind: ShotKind | null;
 }
 
 /** What the player tries to do with the ball when it comes into reach. */

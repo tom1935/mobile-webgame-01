@@ -4,7 +4,7 @@
 Spec (Japanese): [docs/design.md](docs/design.md)
 
 ## Controls
-Tap / hold to run, flick to hit the ball (up = set, forward = attack, forward while jumping = spike), JUMP button to jump.
+Touch the left half (your court) to run, flick on the right half to hit (up = set, forward = attack, forward while jumping = spike), tap the top band to jump.
 
 ## Development
 Requires Node 22.18+ (runs TypeScript directly).

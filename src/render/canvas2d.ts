@@ -1,7 +1,7 @@
 // Simple side-view renderer on a 2D canvas. No dependencies.
 // Used as the debug view (?view=2d) and as a fallback when 3D is unavailable.
 import { BALL_RADIUS, COURT_HALF, NET_HEIGHT } from '../sim/constants.ts';
-import type { World } from '../sim/types.ts';
+import type { Player, World } from '../sim/types.ts';
 import type { ProbeItem, Renderer } from './types.ts';
 
 const VIEW_X_MIN = -11;
@@ -24,6 +24,28 @@ const COLORS = {
   hair: '#5a3b26',
   shadow: 'rgba(80, 50, 20, 0.25)',
 };
+
+const SWING_FRAMES = 14;
+
+/** Arm angles in degrees (0 = toward the net, 90 = straight up) for the current pose. */
+function armAngles(p: Player, frame: number): number[] {
+  const t = (frame - p.lastSwingFrame) / SWING_FRAMES;
+  if (t < 0 || t > 1 || !p.lastSwingKind) return [-50, -35];
+  switch (p.lastSwingKind) {
+    case 'set':
+      return [70 + 25 * t, 80 + 25 * t]; // both hands up over the head
+    case 'pass':
+    case 'shank':
+      return [-25 + 15 * t, -20 + 15 * t]; // forearm platform
+    case 'lob':
+      return [60 + 40 * t, 70 + 40 * t];
+    default: {
+      // spike / drive / serve: big overhead swing from behind to the front
+      const a = 150 - 190 * t;
+      return [a, -40];
+    }
+  }
+}
 
 export function createCanvas2DRenderer(canvas: HTMLCanvasElement): Renderer {
   const ctx = canvas.getContext('2d')!;
@@ -105,15 +127,17 @@ export function createCanvas2DRenderer(canvas: HTMLCanvasElement): Renderer {
     ctx.fillRect(x - 0.22 * u, feet - 0.62 * u, 0.44 * u, 0.2 * u);
     ctx.fillStyle = shirt;
     ctx.fillRect(x - 0.22 * u, feet - 0.98 * u, 0.44 * u, 0.38 * u);
-    // Arms: raised shortly after a hit, forward otherwise
-    const sinceHit = world.frame - p.lastHitFrame;
+    // Arms: swing pose after a flick / hit, relaxed otherwise
     ctx.strokeStyle = COLORS.skin;
     ctx.lineWidth = 0.09 * u;
-    ctx.beginPath();
-    ctx.moveTo(x, feet - 0.9 * u);
-    if (sinceHit < 12) ctx.lineTo(x + facing * 0.15 * u, feet - 1.75 * u);
-    else ctx.lineTo(x + facing * 0.4 * u, feet - 0.62 * u);
-    ctx.stroke();
+    ctx.lineCap = 'round';
+    for (const deg of armAngles(p, world.frame)) {
+      const a = (deg * Math.PI) / 180;
+      ctx.beginPath();
+      ctx.moveTo(x, feet - 0.9 * u);
+      ctx.lineTo(x + facing * Math.cos(a) * 0.75 * u, feet - 0.9 * u - Math.sin(a) * 0.75 * u);
+      ctx.stroke();
+    }
     // Big chibi head
     ctx.fillStyle = COLORS.skin;
     ctx.beginPath();
