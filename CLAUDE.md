@@ -15,6 +15,10 @@
 - `src/sim/` は Node の型除去(type stripping)で直接実行できる書き方にする: `enum`・`namespace`・コンストラクタ引数プロパティは使わない、import には `.ts` 拡張子を付け、型だけの import は `import type` を使う。
 
 ## デバッグ（スクショに頼らない）
-- `node tools/sim-cli.ts --autoplay --seed 1 --frames 3600` : 4人bot対戦をヘッドレスで回してサマリを出す
-- `--events` イベントログ(JSONL)、`--trace 6` 6フレームごとの座標、`--ascii 300` 300フレーム目のコート図
-- `node --test tests/` : ロジックのテスト
+- `node tools/sim-cli.ts --autoplay --matches 20` : 4人bot対戦をヘッドレスで回して統計を出す
+- `--virtual-human` : 自キャラをタッチ相当のコマンドだけで操作するbot（操作系の検証用）
+- `--events` イベントログ(JSONL)、`--trace 6` 6フレームごとの座標、`--ascii 300` 300フレーム目のコート図、`--ascii-on hit` 打球ごとのコート図
+- `npm test`（= `node --test "tests/*.test.ts"`）: ロジック・ジェスチャのテスト
+- `npm run e2e` : スマホ横向きChromiumに実タッチを送り `window.__game` で結果を確認（グローバルの tsc / playwright を使用）
+- ブラウザで `?debug=1` : 座標オーバーレイと `window.__game`（getState / step / input / getLog / ascii / probe / exportReplay）
+- 長いログを読む調査はサブエージェントに任せ、結論だけ受け取る

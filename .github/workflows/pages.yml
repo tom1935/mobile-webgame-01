@@ -1,0 +1,46 @@
+name: Test and deploy to GitHub Pages
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc -p tsconfig.json --noEmit
+      - run: npm test
+      - name: Bot matches (no invariant violations)
+        run: node tools/sim-cli.ts --autoplay --matches 10 --points 7
+      - name: Virtual human matches
+        run: node tools/sim-cli.ts --virtual-human --matches 10 --points 7
+      - run: npx tsc -p tsconfig.json && node -e "require('fs').writeFileSync('.dev-build/index.html', require('fs').readFileSync('index.html','utf8').replace('/src/main.ts','./src/main.js'))"
+      - run: mkdir -p .dev-build/docs && cp -r docs/reference .dev-build/docs/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .dev-build
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
