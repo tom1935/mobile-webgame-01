@@ -10,6 +10,13 @@
 - 仕様: `docs/design.md`
 - イメージ資料: `docs/reference/concept-beach.webp`
 
+## 見た目・素材のルール（ユーザー指示）
+- 目標は `docs/reference/concept-beach.webp` くらい綺麗な背景と、リッチなライティング。
+- **素材で作れる部分は素材を使い、自作しない**（空・砂に限らず、テクスチャ・モデル全般）。手続き生成のテクスチャや、プリミティブを組み合わせたモデルで代用しない。
+- 素材はCC0を優先し、出典とライセンスを `assets/CREDITS.md`（取得スクリプト経由のものは `assets/manifest.json`）に記録する。
+- キャラは参考画像に合う素材が決まるまで **カプセル1つ** で仮置き。カプセルを組み合わせてキャラを作らない。頭身の違う素材（例: Kenney Mini Characters）はアニメも流用できないので使わない。
+- 素材のサイトにつながらない時は、代用品で埋めずにユーザーに許可すべきドメインを伝える。
+
 ## 構成のルール
 - `src/sim/` は純粋なゲームロジック。Three.js・DOM・`Math.random()`・`Date.now()` を使わない（乱数は `sim/rng.ts` のシード付き）。
 - `src/sim/` は Node の型除去(type stripping)で直接実行できる書き方にする: `enum`・`namespace`・コンストラクタ引数プロパティは使わない、import には `.ts` 拡張子を付け、型だけの import は `import type` を使う。
@@ -19,7 +26,8 @@
 - `--virtual-human` : 自キャラをタッチ相当のコマンドだけで操作するbot（操作系の検証用）
 - `--events` イベントログ(JSONL)、`--trace 6` 6フレームごとの座標、`--ascii 300` 300フレーム目のコート図、`--ascii-on hit` 打球ごとのコート図
 - `npm test`（= `node --test "tests/*.test.ts"`）: ロジック・ジェスチャのテスト
-- `npm run e2e` : スマホ横向きChromiumに実タッチを送り `window.__game` で結果を確認（グローバルの tsc / playwright を使用）
+- `npm run e2e` : スマホ横向きChromiumに実タッチを送り `window.__game` で結果を確認（グローバルの tsc / playwright を使用）。既定は3D表示（低画質）、`node tests-e2e/play.mjs --2d` で2D表示
+- ブラウザで `window.__game.renderInfo()` : 表示モード・画質・FPS・素材の読み込み状況
 - ブラウザで `?debug=1` : 座標オーバーレイと `window.__game`（getState / step / input / getLog / ascii / probe / exportReplay）
 - 調整値は `src/sim/params.ts` の `P`（実行時に変更可）。ブラウザは `?tune=1` のスライダー、CLIは `--param KEY=VAL`。値は使う時に `P.X` で読む（モジュール定数にコピーしない）
 - 長いログを読む調査はサブエージェントに任せ、結論だけ受け取る
