@@ -3,12 +3,17 @@
 //
 //   node tools/fetch-assets.mjs            # fetch what is missing
 //   node tools/fetch-assets.mjs --force    # re-download
+//   node tools/fetch-assets.mjs --only sky # just one kind (sky | sand | wetSand)
 //
 // Needs network access to api.polyhaven.com, dl.polyhaven.org (and ambientcg.com for the fallback).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const force = process.argv.includes('--force');
+const onlyIdx = process.argv.indexOf('--only');
+const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null;
+const idIdx = process.argv.indexOf('--id'); // try a specific Poly Haven id: --only sand --force --id sand_02
+const pickId = idIdx >= 0 ? process.argv[idIdx + 1] : null;
 const manifestPath = 'assets/manifest.json';
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
@@ -19,8 +24,10 @@ const SKY_CANDIDATES = [
   'qwantani_noon_puresky',
   'kloppenheim_06_puresky',
 ];
-// Fine, light beach sand.
-const SAND_CANDIDATES = ['coast_sand_01', 'coast_sand_02', 'coast_sand_05', 'aerial_beach_01', 'sand_01'];
+// Soft, trampled beach sand (rounded divots like a beach volleyball court). Chosen by comparing lit previews.
+const SAND_CANDIDATES = ['sand_03', 'sand_02', 'dense_sand'];
+// Wet sand for the band along the waterline.
+const WET_SAND_CANDIDATES = ['damp_beach_sand', 'damp_beach_sand_02'];
 const AMBIENTCG_SAND = ['Ground054', 'Ground080', 'Ground055'];
 
 async function json(url) {
@@ -59,8 +66,8 @@ async function fetchSky() {
   throw new Error('no sky HDRI found');
 }
 
-async function fetchSandPolyHaven() {
-  for (const id of SAND_CANDIDATES) {
+async function fetchSandPolyHaven(candidates = SAND_CANDIDATES) {
+  for (const id of candidates) {
     let files;
     try {
       files = await json(`https://api.polyhaven.com/files/${id}`);
@@ -70,14 +77,17 @@ async function fetchSandPolyHaven() {
     const map = (k) => files[k]?.['1k']?.jpg?.url;
     if (!map('Diffuse') || !map('nor_gl')) continue;
     console.log('sand:', id);
+    const info = await json(`https://api.polyhaven.com/info/${id}`);
     const out = {
       color: await download(map('Diffuse'), `assets/textures/${id}_diff_1k.jpg`),
       normal: await download(map('nor_gl'), `assets/textures/${id}_nor_gl_1k.jpg`),
       source: `https://polyhaven.com/a/${id}`,
       license: 'CC0',
-      tileMeters: 3,
+      tileMeters: Math.round((info.dimensions?.[0] ?? 2000) / 100) / 10, // real size of one tile
     };
     if (map('Rough')) out.roughness = await download(map('Rough'), `assets/textures/${id}_rough_1k.jpg`);
+    if (map('AO')) out.ao = await download(map('AO'), `assets/textures/${id}_ao_1k.jpg`);
+    if (map('Displacement')) out.height = await download(map('Displacement'), `assets/textures/${id}_disp_1k.jpg`);
     return out;
   }
   throw new Error('no Poly Haven sand texture found');
@@ -110,16 +120,16 @@ async function fetchSandAmbientCG() {
   throw new Error('no ambientCG sand texture found');
 }
 
-if (!manifest.sky || force) {
+if ((!manifest.sky || force) && (!only || only === 'sky')) {
   try {
     manifest.sky = await fetchSky();
   } catch (e) {
     console.error('sky failed:', e.message);
   }
 }
-if (!manifest.sand || force) {
+if ((!manifest.sand || force) && (!only || only === 'sand')) {
   try {
-    manifest.sand = await fetchSandPolyHaven();
+    manifest.sand = await fetchSandPolyHaven(pickId ? [pickId] : SAND_CANDIDATES);
   } catch (e) {
     console.error(e.message, '-> trying ambientCG');
     try {
@@ -127,6 +137,13 @@ if (!manifest.sand || force) {
     } catch (e2) {
       console.error('sand failed:', e2.message);
     }
+  }
+}
+if ((!manifest.wetSand || force) && (!only || only === 'wetSand')) {
+  try {
+    manifest.wetSand = await fetchSandPolyHaven(WET_SAND_CANDIDATES);
+  } catch (e) {
+    console.error('wet sand failed:', e.message);
   }
 }
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
