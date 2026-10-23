@@ -62,7 +62,6 @@ export function createThreeRenderer(
     if (m.sand) pending.add('sand');
     env = createEnvironment(scene, renderer, m, done);
     env.sun.shadow.mapSize.setScalar(quality === 'high' ? 2048 : 1024);
-    env.setWaterResolution(quality === 'high' ? 512 : 256);
     done('manifest', true);
   });
 
@@ -84,8 +83,7 @@ export function createThreeRenderer(
       env.sun.shadow.mapSize.setScalar(quality === 'high' ? 2048 : 1024);
       env.sun.shadow.map?.dispose();
       env.sun.shadow.map = null;
-      env.setWaterResolution(quality === 'high' ? 512 : 256);
-    }
+      }
   };
 
   // Frame-rate watch for the automatic tier
