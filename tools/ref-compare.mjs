@@ -3,6 +3,7 @@
 //   side.png    reference (left) | render (right)
 //   overlay.png 50/50 blend, to check alignment of horizon, net, shore, scenery
 //   gray.png    side by side in grayscale, to compare values (light/dark balance)
+// and prints color stats of fixed regions (reference vs render) so changes can be judged by numbers.
 //
 //   node tools/ref-compare.mjs [--quality low|high] [--out .ref-compare] [--no-build] [--look KEY:VAL,KEY:VAL]
 // Uses the global playwright (same as tests-e2e/play.mjs) and SwiftShader WebGL.
@@ -22,6 +23,17 @@ const quality = opt('--quality', 'low');
 const out = opt('--out', '.ref-compare');
 const look = opt('--look', '');
 const REF = 'docs/reference/concept-beach.webp';
+// Regions in reference pixels [x0, y0, x1, y1]. Sun shadow / lit pair is measured on the render only.
+const REGIONS = {
+  'sky top': [600, 15, 1000, 70],
+  'sky mid': [560, 250, 800, 300],
+  'sea far': [600, 470, 1000, 500],
+  'sea near': [600, 520, 1000, 550],
+  sand: [560, 700, 1000, 760],
+  island: [1300, 410, 1450, 450],
+};
+const SHADOW = [1030, 780, 1060, 800];
+const LIT = [700, 760, 800, 780];
 const W = 1672;
 const H = 941;
 
@@ -64,7 +76,7 @@ try {
   const refUrl = `data:image/webp;base64,${readFileSync(REF).toString('base64')}`;
   // Grab the canvas right after a frame is drawn, then compose the comparison images in the page.
   const images = await page.evaluate(
-    ({ refUrl, W, H }) =>
+    ({ refUrl, W, H, regions, shadow, lit }) =>
       new Promise((resolve, reject) => {
         requestAnimationFrame(() => {
           const shot = document.querySelector('#game').toDataURL('image/png');
@@ -92,18 +104,46 @@ try {
               g.filter = 'grayscale(1)';
               g.drawImage(ref, 0, 0, W, H);
               g.drawImage(ren, W, 0, W, H);
-              resolve({ render: shot, side: side.toDataURL(), overlay: overlay.toDataURL(), gray: gray.toDataURL() });
+              // Region stats: mean color, luminance mean / 10th / 90th percentile, mean color of the darkest and lightest 10%.
+              const pixels = (img) => {
+                const c = canvas(W, H).getContext('2d');
+                c.drawImage(img, 0, 0, W, H);
+                return c.getImageData(0, 0, W, H).data;
+              };
+              const stats = (d, [x0, y0, x1, y1]) => {
+                const px = [];
+                for (let y = y0; y < y1; y++)
+                  for (let x = x0; x < x1; x++) {
+                    const i = (y * W + x) * 4;
+                    px.push([d[i], d[i + 1], d[i + 2], 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]]);
+                  }
+                px.sort((a, b) => a[3] - b[3]);
+                const mean = (arr) => [0, 1, 2, 3].map((k) => Math.round(arr.reduce((s, p) => s + p[k], 0) / arr.length));
+                const n = px.length;
+                const m = mean(px);
+                return { rgb: m.slice(0, 3), L: m[3], p10: Math.round(px[Math.floor(n * 0.1)][3]), p90: Math.round(px[Math.floor(n * 0.9)][3]), dark10: mean(px.slice(0, n / 10)).slice(0, 3), light10: mean(px.slice(-n / 10)).slice(0, 3) };
+              };
+              const dr = pixels(ref);
+              const dn = pixels(ren);
+              const table = {};
+              for (const [k, box] of Object.entries(regions)) table[k] = { ref: stats(dr, box), ours: stats(dn, box) };
+              const shadowRatio = stats(dn, shadow).L / stats(dn, lit).L;
+              resolve({ images: { render: shot, side: side.toDataURL(), overlay: overlay.toDataURL(), gray: gray.toDataURL() }, table, shadowRatio });
             })
             .catch(reject);
         });
       }),
-    { refUrl, W, H },
+    { refUrl, W, H, regions: REGIONS, shadow: SHADOW, lit: LIT },
   );
   mkdirSync(out, { recursive: true });
-  for (const [name, url] of Object.entries(images)) {
+  const fmt = (o) => `rgb ${o.rgb.join(',').padEnd(11)} L ${String(o.L).padStart(3)} p10-90 ${o.p10}-${o.p90}  dark ${o.dark10.join(',')}  light ${o.light10.join(',')}`;
+  for (const [k, v] of Object.entries(images.table)) console.log(`${k.padEnd(9)} ref  ${fmt(v.ref)}\n${''.padEnd(9)} ours ${fmt(v.ours)}`);
+  console.log(`sun shadow / lit sand (ours): ${images.shadowRatio.toFixed(2)}   (reference: 0.78)`);
+  writeFileSync(join(out, 'stats.json'), JSON.stringify({ regions: images.table, shadowRatio: images.shadowRatio }, null, 2));
+  for (const [name, url] of Object.entries(images.images)) {
     writeFileSync(join(out, `${name}.png`), Buffer.from(url.split(',')[1], 'base64'));
   }
-  console.log(`wrote ${out}/{render,side,overlay,gray}.png`);
+  console.log(`wrote ${out}/{render,side,overlay,gray}.png, stats.json`);
 } finally {
   await browser.close();
   server.close();

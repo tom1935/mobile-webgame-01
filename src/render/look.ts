@@ -8,13 +8,14 @@ export const DEFAULT_LOOK = {
   SKY_EXPOSURE: 1.0,
   SKY_SAT: 1.0, // saturation multiplier
   SKY_ZENITH: 0.0, // 0..1: darken toward the top of the sky (deeper blue overhead)
-  // Sand: the texture's average color is normalized to this (sRGB hex), detail is kept
-  SAND_ALBEDO: 0xf0d0a0,
+  // Sand: gradient map from the texture's light/dark detail (sRGB hex colors)
+  SAND_LIGHT: 0xfff0c4, // yellowish tops
+  SAND_DARK: 0xd8a46c, // orange hollows
   SAND_MACRO: 0.35, // strength of the large-scale copy that hides tiling
-  SAND_TILE: 2, // texture scale multiplier (2 = features twice as big)
+  SAND_TILE: 3, // texture scale multiplier (2 = features twice as big)
   SAND_NORMAL: 1.8, // normal map strength
-  SAND_CAVITY: 0.8, // 0..1: darken cavities with the AO map (also tints them warmer)
-  SAND_CONTRAST: 1.2, // detail contrast around the average color
+  SAND_CAVITY: 0.8, // 0..1: AO cavities pull toward SAND_DARK
+  SAND_CONTRAST: 2.5, // how far the detail spreads between SAND_DARK and SAND_LIGHT
   SAND_HEIGHT: 0, // relief depth (m) for parallax + self-shadow (0 = off); scales with SAND_TILE
   // Lights (balanced so a sun shadow on the sand is ~0.78x the lit sand, as measured in the reference)
   SUN_INTENSITY: 3.6,

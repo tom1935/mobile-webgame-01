@@ -1,8 +1,8 @@
 // The beach: one shared cross-section (sand height along z) used by both the sand mesh and the sea,
 // so the sea knows its depth everywhere without a depth pass.
 //
-// Sand material: a CC0 PBR texture whose average color is normalized to LOOK.SAND_ALBEDO (keeps the
-// texture's detail, fixes its overall brightness/hue), a large-scale copy of the same texture to break
+// Sand material: a CC0 PBR texture used as a gradient map: its light/dark detail (plus AO cavities and a
+// large-scale copy against tiling) picks a color between LOOK.SAND_DARK (orange) and LOOK.SAND_LIGHT (yellow), a large-scale copy of the same texture to break
 // up tiling, and a wet-sand texture blended in along the waterline.
 import * as THREE from 'three';
 import { LOOK } from '../look.ts';
@@ -61,7 +61,7 @@ export function createBeach(
   }
   geo.computeVertexNormals();
 
-  const mat = new THREE.MeshStandardMaterial({ color: LOOK.SAND_ALBEDO, roughness: 0.95, metalness: 0 });
+  const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
   const uniforms = {
     wetReach: { value: 1.2 },
     waterlineZ: { value: WATERLINE_Z },
@@ -75,6 +75,8 @@ export function createBeach(
     aoMap2: { value: null as THREE.Texture | null },
     cavity: { value: 0 },
     contrast: { value: 1 },
+    sandLight: { value: new THREE.Color(LOOK.SAND_LIGHT) },
+    sandDark: { value: new THREE.Color(LOOK.SAND_DARK) },
     wetMean: { value: new THREE.Color(1, 1, 1) },
     heightMap: { value: null as THREE.Texture | null },
     heightScale: { value: 0 },
@@ -116,7 +118,7 @@ export function createBeach(
           `#include <common>
 varying vec3 vSandWorld;
 uniform float wetReach, waterlineZ, macroScale, macroStrength, wetDarken;
-uniform vec3 dryMean, wetMean, sunDir;
+uniform vec3 dryMean, wetMean, sunDir, sandLight, sandDark;
 uniform sampler2D wetMap, wetNormal, wetRough, aoMap2, heightMap;
 uniform float cavity, contrast, heightScale, uvRepeat;
 float sandWet;
@@ -171,13 +173,12 @@ float sandDepth(vec2 uv) { return heightScale * (1.0 - textureGrad(heightMap, uv
   // Wetness: 1 below the swash line, fading out over a ragged edge above it.
   float edgeNoise = texture2D(map, vSandWorld.xz * 0.05).g / max(dryMean.g, 1e-3);
   sandWet = ${hasWet} * (1.0 - smoothstep(0.0, 0.6, (vSandWorld.z - waterlineZ) - wetReach + (edgeNoise - 1.0) * 0.8));
-  // Detail normalized by its average color (diffuse = LOOK.SAND_ALBEDO), times a large-scale copy to hide tiling.
-  vec3 dryC = pow(textureGrad(map, sandUv, sandDx, sandDy).rgb / dryMean, vec3(contrast));
-  float ao = textureGrad(aoMap2, sandUv, sandDx, sandDy).r;
-  // Cavities: darker and warmer (light bounces between sand grains).
-  dryC *= mix(vec3(1.0), ao * mix(vec3(1.0), vec3(1.0, 0.72, 0.45), 1.0 - ao), cavity);
-  vec3 macro = texture2D(map, vMapUv * macroScale + vec2(0.37, 0.71)).rgb / dryMean;
-  dryC *= mix(vec3(1.0), macro, macroStrength);
+  // Gradient map: the texture's detail (relative to its average), darkened in AO cavities and varied by a
+  // large-scale copy against tiling, picks a color between sandDark (orange) and sandLight (yellow).
+  float v = dot(textureGrad(map, sandUv, sandDx, sandDy).rgb / dryMean, vec3(0.2126, 0.7152, 0.0722));
+  v *= mix(1.0, textureGrad(aoMap2, sandUv, sandDx, sandDy).r, cavity);
+  v *= mix(1.0, dot(texture2D(map, vMapUv * macroScale + vec2(0.37, 0.71)).rgb / dryMean, vec3(0.2126, 0.7152, 0.0722)), macroStrength);
+  vec3 dryC = mix(sandDark, sandLight, clamp(0.5 + (v - 1.0) * contrast, 0.0, 1.0));
   vec3 wetC = textureGrad(wetMap, sandUv, sandDx, sandDy).rgb / wetMean * wetDarken;
   diffuseColor.rgb *= mix(dryC, wetC, sandWet);
 #endif`,
@@ -213,7 +214,8 @@ float sandDepth(vec2 uv) { return heightScale * (1.0 - textureGrad(heightMap, uv
       uniforms.wetReach.value = m;
     },
     update() {
-      mat.color.set(LOOK.SAND_ALBEDO);
+      uniforms.sandLight.value.set(LOOK.SAND_LIGHT);
+      uniforms.sandDark.value.set(LOOK.SAND_DARK);
       uniforms.macroStrength.value = LOOK.SAND_MACRO;
       uniforms.cavity.value = LOOK.SAND_CAVITY;
       uniforms.contrast.value = LOOK.SAND_CONTRAST;
