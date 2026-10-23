@@ -14,6 +14,13 @@
 - 使用中: Kenney Nature Kit（CC0, ヤシ・岩・草）、three.js の `waternormals.jpg`（MIT, 海）
 - 未取得（仮置き中）: 空のHDRI・砂のPBRテクスチャ（Poly Haven / ambientCG, CC0）。`node tools/fetch-assets.mjs` で取得して `assets/manifest.json` に記録すると自動で使われる（要ネットワーク許可: api.polyhaven.com, dl.polyhaven.org, ambientcg.com）。未取得の間は空=three の Sky シェーダー、砂=単色
 - キャラは未定（カプセルで仮置き）。Kenney Mini Characters は頭身・雰囲気が参考画像と違いすぎるため不採用
+- Kenney Nature Kit はローポリ・独特の配色（オレンジの幹・水色の葉）で参考画像に合わない。差し替えるまでの仮置き。glbの色がsRGB値のまま・金属度1で入っているので読み込み時に補正している（`src/render/scene/props.ts`）
+- Quaternius の素材は itch.io / Google ドライブ経由のダウンロードなので、そのドメインの許可も必要
+
+## 現状と既知の問題（2026-10 時点）
+- 3D表示は実機で元の操作どおり遊べることを確認済み
+- `npm run e2e`（3D）は15項目中1項目「flick receives the ball」が失敗する。ヘッドレスのソフトウェアWebGLではフレームが遅く、テストのタッチ送信がボールに間に合わないため（2D表示では全項目成功、実機では問題なし）。テスト側の待ち方を直す必要がある
+- ヘッドレス環境では描画速度が不安定（特に影）なので、その環境のFPSを基準に本番の画質を調整しない
 
 ## 操作
 画面を3つの領域に分け、入力が競合しないようにしている（最初の1点が終わるまで点線とラベルで案内）。
@@ -54,7 +61,9 @@
 ジャンプは最高点で `JUMP_HANG_FRAMES` フレーム止まる（スパイクのタイミングを取りやすくするため）。
 
 ## 今後のTODO
-- 空HDRI・砂テクスチャの取得（上記）。ヤシ・岩も参考画像に合う写実寄りの素材に差し替える
+- 空HDRI・砂テクスチャの取得（上記、`node tools/fetch-assets.mjs`）。ヤシ・岩・植物も参考画像に合う素材に差し替える
+- 素材が入ったらスクショを参考画像と並べて、ライティング・色・構図を調整する（`src/render/scene/environment.ts`, `post.ts`）
+- e2e の「flick receives the ball」（3D）を直す
 - 参考画像に合うキャラクター素材（glTF）とアニメーション。ネットの網・ボールの素材、遠景の島
 - 効果音・BGM、タイトル画面、難易度選択
 - 実機での操作感の調整（フリック判定のしきい値など）
