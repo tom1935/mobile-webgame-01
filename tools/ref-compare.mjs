@@ -4,7 +4,7 @@
 //   overlay.png 50/50 blend, to check alignment of horizon, net, shore, scenery
 //   gray.png    side by side in grayscale, to compare values (light/dark balance)
 //
-//   node tools/ref-compare.mjs [--quality low|high] [--out .ref-compare] [--no-build]
+//   node tools/ref-compare.mjs [--quality low|high] [--out .ref-compare] [--no-build] [--look KEY:VAL,KEY:VAL]
 // Uses the global playwright (same as tests-e2e/play.mjs) and SwiftShader WebGL.
 import { execSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,6 +20,7 @@ const opt = (name, def) => {
 };
 const quality = opt('--quality', 'low');
 const out = opt('--out', '.ref-compare');
+const look = opt('--look', '');
 const REF = 'docs/reference/concept-beach.webp';
 const W = 1672;
 const H = 941;
@@ -35,7 +36,7 @@ try {
 }
 
 const dir = '.dev-build';
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.glb': 'model/gltf-binary' };
+const types = { '.hdr': 'application/octet-stream', '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.glb': 'model/gltf-binary' };
 const server = createServer(async (req, res) => {
   let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (path.endsWith('/')) path += 'index.html';
@@ -52,7 +53,9 @@ await new Promise((r) => server.listen(0, r));
 const browser = await playwright.chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 try {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-  await page.goto(`http://127.0.0.1:${server.address().port}/?debug=1&seed=1&scene=ref&quality=${quality}`);
+  page.on('pageerror', (e) => console.log('page error:', String(e)));
+  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log(`console ${m.type()}:`, m.text().slice(0, 2000)));
+  await page.goto(`http://127.0.0.1:${server.address().port}/?debug=1&seed=1&scene=ref&quality=${quality}${look ? `&look=${encodeURIComponent(look)}` : ''}`);
   await page.waitForFunction(() => window.__game?.renderInfo?.().ready, null, { timeout: 90000 });
   await page.waitForTimeout(1500);
   const info = await page.evaluate(() => window.__game.renderInfo());

@@ -3,12 +3,15 @@
 //
 //   node tools/fetch-assets.mjs            # fetch what is missing
 //   node tools/fetch-assets.mjs --force    # re-download
+//   node tools/fetch-assets.mjs --only sky # just one kind (sky | sand)
 //
 // Needs network access to api.polyhaven.com, dl.polyhaven.org (and ambientcg.com for the fallback).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const force = process.argv.includes('--force');
+const onlyIdx = process.argv.indexOf('--only');
+const only = onlyIdx >= 0 ? process.argv[onlyIdx + 1] : null;
 const manifestPath = 'assets/manifest.json';
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
@@ -110,14 +113,14 @@ async function fetchSandAmbientCG() {
   throw new Error('no ambientCG sand texture found');
 }
 
-if (!manifest.sky || force) {
+if ((!manifest.sky || force) && (!only || only === 'sky')) {
   try {
     manifest.sky = await fetchSky();
   } catch (e) {
     console.error('sky failed:', e.message);
   }
 }
-if (!manifest.sand || force) {
+if ((!manifest.sand || force) && (!only || only === 'sand')) {
   try {
     manifest.sand = await fetchSandPolyHaven();
   } catch (e) {

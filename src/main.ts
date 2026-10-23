@@ -1,11 +1,13 @@
 // Browser entry: fixed-step game loop + touch input + rendering + HUD + debug hooks.
 // URL options: ?debug=1  ?tune=1  ?seed=123  ?autoplay=1  ?points=7  ?view=2d  ?quality=high|low
+//              ?look=KEY:VAL,... (3D look values, src/render/look.ts)
 //              ?scene=ref (3D only: camera + scenery blockout of the reference picture, game frozen)
 import { installDebugApi, type GameHost } from './debug/api.ts';
 import { createOverlay } from './debug/overlay.ts';
 import { installTunePanel } from './debug/tune-panel.ts';
 import { createGestureState, pointerCancel, pointerDown, pointerMove, pointerUp, type Zone } from './input/gesture.ts';
 import { createCanvas2DRenderer } from './render/canvas2d.ts';
+import { applyLookFromUrl } from './render/look.ts';
 import { createThreeRenderer, webglAvailable } from './render/three3d.ts';
 import type { Renderer } from './render/types.ts';
 import { DT } from './sim/constants.ts';
@@ -18,6 +20,7 @@ const params = new URLSearchParams(location.search);
 const debug = params.get('debug') === '1';
 const points = Number(params.get('points') ?? 15);
 const refShot = params.get('scene') === 'ref';
+applyLookFromUrl(location.search);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 const hud = createHud(document.querySelector<HTMLElement>('#hud')!);

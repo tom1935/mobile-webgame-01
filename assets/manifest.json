@@ -1,4 +1,9 @@
 {
-  "sky": null,
+  "sky": {
+    "background": "assets/env/kloofendal_48d_partly_cloudy_puresky_2k.hdr",
+    "env": "assets/env/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
+    "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+    "license": "CC0"
+  },
   "sand": null
 }

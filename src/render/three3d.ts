@@ -6,6 +6,7 @@
 // refShot (?scene=ref): camera and scenery blockout of docs/reference/concept-beach.webp, for comparison.
 import * as THREE from 'three';
 import type { World } from '../sim/types.ts';
+import { LOOK } from './look.ts';
 import { loadManifest } from './scene/assets.ts';
 import { createActors, type Actors } from './scene/actors.ts';
 import { createCourt } from './scene/court.ts';
@@ -155,6 +156,7 @@ export function createThreeRenderer(
       plane.constant = -humanZ;
       actors.update(world);
       props.update(t);
+      renderer.toneMappingExposure = LOOK.EXPOSURE;
       env?.update(dt);
       if (quality === 'high' && post) post.render();
       else renderer.render(scene, camera);
