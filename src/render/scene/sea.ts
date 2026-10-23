@@ -53,6 +53,7 @@ export function createSea(
     waveScale: { value: 1 },
     glint: { value: 0 },
     glintPower: { value: 0 },
+    glintTilt: { value: 1 },
   };
 
   const material = new THREE.ShaderMaterial({
@@ -68,7 +69,7 @@ export function createSea(
       #include <common>
       ${SAND_HEIGHT_GLSL}
       uniform float time, hasSky, skyRot, skyExposure, skySat, skyZenith;
-      uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower;
+      uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower, glintTilt;
       uniform sampler2D normalMap, skyMap;
       uniform vec3 sunDir, sunColor, skyFallback, bedColor, deepColor, absorb;
       varying vec3 vWorld;
@@ -85,12 +86,12 @@ export function createSea(
       }
 
       // Three scales of the normal map, each drifting its own way (texture xy -> world xz).
-      vec3 waterNormal(vec2 p) {
+      vec3 waterNormal(vec2 p, float strength) {
         vec2 s = p / waveScale;
         vec3 a = texture2D(normalMap, s / 7.0 + vec2(0.021, 0.013) * time).xyz * 2.0 - 1.0;
         vec3 b = texture2D(normalMap, mat2(0.8, -0.6, 0.6, 0.8) * s / 19.0 + vec2(-0.011, 0.017) * time).xyz * 2.0 - 1.0;
         vec3 c = texture2D(normalMap, mat2(-0.5, 0.87, -0.87, -0.5) * s / 47.0 + vec2(0.006, -0.008) * time).xyz * 2.0 - 1.0;
-        vec2 xy = (a.xy + b.xy + c.xy) * normalStrength;
+        vec2 xy = (a.xy + b.xy + c.xy) * strength;
         return normalize(vec3(xy.x, 1.0, xy.y));
       }
 
@@ -98,7 +99,7 @@ export function createSea(
         vec3 toCam = cameraPosition - vWorld;
         float dist = length(toCam);
         vec3 V = toCam / dist;
-        vec3 N = waterNormal(vWorld.xz);
+        vec3 N = waterNormal(vWorld.xz, normalStrength);
 
         // Water body: light from the seabed, absorbed per channel on its way down and up through the water.
         float depth = max(${SEA_LEVEL.toFixed(3)} - sandHeight(vWorld.z), 0.0);
@@ -112,8 +113,10 @@ export function createSea(
         vec3 R = reflect(-V, N);
         vec3 col = mix(body, sky(R), clamp(F * reflectAmt, 0.0, 1.0));
 
-        // Sun glints
-        col += sunColor * glint * pow(max(dot(R, sunDir), 0.0), glintPower);
+        // Sun glints: the sun is high (~51°), so only steep wave facets reflect it toward the camera;
+        // the glints use the same small waves, tilted more (glintTilt).
+        vec3 Rg = reflect(-V, waterNormal(vWorld.xz, normalStrength * glintTilt));
+        col += sunColor * glint * pow(max(dot(Rg, sunDir), 0.0), glintPower);
 
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>
@@ -147,6 +150,7 @@ export function createSea(
       uniforms.waveScale.value = LOOK.SEA_WAVE_SCALE;
       uniforms.glint.value = LOOK.SEA_GLINT;
       uniforms.glintPower.value = LOOK.SEA_GLINT_POWER;
+      uniforms.glintTilt.value = LOOK.SEA_GLINT_TILT;
     },
   };
 }
