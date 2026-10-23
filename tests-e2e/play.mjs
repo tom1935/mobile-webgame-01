@@ -96,14 +96,36 @@ await G(() => window.__game.step(90));
 let s = await state();
 check('tap -> player runs to the tapped spot', Math.abs(s.players[0].x - -6) < 0.2, `x=${s.players[0].x}`);
 
-// 3. Jump button
+// 2b. Fast drag in the move zone still moves (used to be mistaken for a flick)
 await G(() => window.__game.restart({ seed: 5 }));
-await G(() => window.__game.step(80)); // let the bot serve
-const btn = await page.locator('#jump').boundingBox();
-await tapAt(btn.x + btn.width / 2, btn.y + btn.height / 2);
+await G(() => window.__game.step(80));
+const dragFrom = await G(() => window.__game.courtToScreen(-6, 0.5));
+const dragTo = await G(() => window.__game.courtToScreen(-2.5, 0.5));
+await touch('touchStart', 3, dragFrom.x, dragFrom.y);
+await sleep(10);
+await touch('touchMove', 3, (dragFrom.x + dragTo.x) / 2, dragFrom.y);
+await sleep(10);
+await touch('touchMove', 3, dragTo.x, dragTo.y);
+await touch('touchEnd', 3, dragTo.x, dragTo.y);
+s = await G(() => window.__game.step(1)); // queued input is applied on the next step
+check('fast drag -> moves to the finger', Math.abs(s.players[0].targetX - -2.5) < 0.2, `targetX=${s.players[0].targetX}`);
+
+// 3. Tap on the top band = jump (and does not move the player)
+const vp = page.viewportSize();
+const before3 = (await state()).players[0].targetX;
+await tapAt(vp.width * 0.7, 20);
 await G(() => window.__game.step(1));
 let log = await G(() => window.__game.getLog());
-check('jump button -> jump event', log.some((e) => e.type === 'jump' && e.player === 0));
+check('tap top band -> jump event', log.some((e) => e.type === 'jump' && e.player === 0));
+check('jump tap does not change move target', (await state()).players[0].targetX === before3);
+await G(() => window.__game.step(80));
+
+// 3b. Flick with no ball nearby still swings (animation state)
+const fz = await G(() => window.__game.courtToScreen(4, 1.2));
+await flick(fz.x, fz.y, 10, -70);
+await G(() => window.__game.step(2));
+s = await state();
+check('flick without ball -> swing animation', s.players[0].lastSwing && s.players[0].lastSwing.framesAgo <= 3, JSON.stringify(s.players[0].lastSwing));
 
 // 4. Receive balls with real flicks: step until the ball is about to reach the human, then flick up.
 let humanHits = 0;
@@ -126,9 +148,9 @@ for (let rally = 0; rally < 12 && humanHits < 3; rally++) {
     if (s.phase !== 'rally') break;
     if (s.ball.vy < 0 && Math.abs(s.ball.x - me.x) < 1.6 && s.ball.y < 2.6) break;
   }
-  const me = await G(() => window.__game.courtToScreen(-4, 1));
+  const fz2 = await G(() => window.__game.courtToScreen(4, 1.2)); // flick zone (opponent side)
   const before = (await G(() => window.__game.getLog())).length;
-  await flick(me.x + 150, me.y, 4, -60);
+  await flick(fz2.x, fz2.y, 4, -60);
   await G(() => window.__game.step(14));
   log = await G(() => window.__game.getLog());
   const newEvents = log.slice(before);

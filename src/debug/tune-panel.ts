@@ -10,7 +10,7 @@ const GROUPS: { title: string; keys: ParamKey[] }[] = [
   { title: 'ジャンプ', keys: ['JUMP_VELOCITY', 'PLAYER_GRAVITY', 'JUMP_HANG_FRAMES'] },
   { title: 'ボール（滞空時間・秒）', keys: ['BALL_GRAVITY', 'T_PASS', 'T_SET', 'T_LOB', 'T_DRIVE', 'T_SPIKE', 'T_SERVE'] },
   { title: '打球の強さ', keys: ['MAX_ATTACK_VX', 'HARD_BALL_SPEED'] },
-  { title: 'タッチ判定', keys: ['FLICK_MIN_PX', 'FLICK_MAX_MS', 'HOLD_MS'] },
+  { title: 'タッチ判定', keys: ['FLICK_MIN_PX', 'FLICK_MAX_MS', 'JUMP_ZONE_RATIO'] },
 ];
 
 const LABELS: Record<ParamKey, string> = {
@@ -30,7 +30,7 @@ const LABELS: Record<ParamKey, string> = {
   HARD_BALL_SPEED: 'これ以上の速さは拾いにくい m/s',
   FLICK_MIN_PX: 'フリック最小距離 px',
   FLICK_MAX_MS: 'フリック最大時間 ms',
-  HOLD_MS: '長押し判定 ms',
+  JUMP_ZONE_RATIO: 'ジャンプ領域（画面上部の割合）',
 };
 
 function load(): void {

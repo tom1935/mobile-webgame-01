@@ -51,6 +51,8 @@ function makePlayer(id: number, name: string, team: Team, z: number): Player {
     lastJumpFrame: -999,
     hangFrames: 0,
     hangUsed: false,
+    lastSwingFrame: -999,
+    lastSwingKind: null,
   };
 }
 
@@ -157,6 +159,8 @@ function serve(world: World, p: Player, intent: SwingIntent): void {
   world.touchTeam = p.team;
   world.touches = 0; // the serve is not one of the 3 touches
   p.lastHitFrame = world.frame;
+  p.lastSwingFrame = world.frame;
+  p.lastSwingKind = 'serve';
   p.cooldown = HIT_COOLDOWN_FRAMES;
   world.events.push({ f: world.frame, type: 'serve', player: p.id, x: b.x, y: b.y, vx: b.vx, vy: b.vy });
   setPhase(world, 'rally');
@@ -185,6 +189,9 @@ function applyHumanCommand(world: World, p: Player, c: Command): void {
       } else if (world.phase === 'rally') {
         p.swing = flickToIntent(world, p, c.dx, c.dy, c.ms);
         p.swingFrames = SWING_BUFFER_FRAMES;
+        // Animate the swing right away, even if the ball never comes.
+        p.lastSwingFrame = world.frame;
+        p.lastSwingKind = p.swing.kind;
       }
       break;
   }
@@ -217,6 +224,10 @@ function tryHit(world: World, p: Player): boolean {
   b.vy = r.vy;
   world.lastHitter = p.id;
   p.lastHitFrame = world.frame;
+  if (isBot(world, p) || world.frame - p.lastSwingFrame > 12) {
+    p.lastSwingFrame = world.frame;
+    p.lastSwingKind = r.kind;
+  }
   p.cooldown = HIT_COOLDOWN_FRAMES;
   p.swing = null;
   p.swingFrames = 0;
@@ -313,7 +324,7 @@ export function step(world: World, commands: Command[] = []): void {
       break;
     case 'pointEnd':
       for (const p of world.players) {
-        p.targetX = null;
+        if (isBot(world, p)) p.targetX = null; // keep the human's move input
         stepPlayer(p, 1);
       }
       if (world.frame - world.phaseFrame >= POINT_PAUSE_FRAMES) {

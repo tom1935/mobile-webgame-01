@@ -50,6 +50,7 @@ export function stateSummary(w: World): unknown {
       vx: r(p.vx),
       targetX: p.targetX === null ? null : r(p.targetX),
       swing: p.swingFrames > 0 ? p.swing?.kind : null,
+      lastSwing: p.lastSwingKind ? { kind: p.lastSwingKind, framesAgo: w.frame - p.lastSwingFrame } : null,
     })),
   };
 }

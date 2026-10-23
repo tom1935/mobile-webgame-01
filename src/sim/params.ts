@@ -23,7 +23,7 @@ export const DEFAULT_PARAMS = {
   // Touch gestures
   FLICK_MIN_PX: 28, // swipe distance to count as a flick
   FLICK_MAX_MS: 220, // ...within this time
-  HOLD_MS: 150, // finger held this long = hold-to-move
+  JUMP_ZONE_RATIO: 0.25, // top part of the screen (fraction of height) where a tap = jump
 };
 
 export type Params = typeof DEFAULT_PARAMS;
@@ -60,5 +60,5 @@ export const PARAM_RANGES: Record<ParamKey, [number, number, number]> = {
   HARD_BALL_SPEED: [5, 20, 0.5],
   FLICK_MIN_PX: [8, 80, 1],
   FLICK_MAX_MS: [80, 500, 10],
-  HOLD_MS: [50, 400, 10],
+  JUMP_ZONE_RATIO: [0.1, 0.5, 0.01],
 };

@@ -3,10 +3,11 @@
 import { installDebugApi, type GameHost } from './debug/api.ts';
 import { createOverlay } from './debug/overlay.ts';
 import { installTunePanel } from './debug/tune-panel.ts';
-import { createGestureState, pointerCancel, pointerDown, pointerMove, pointerUp, tick } from './input/gesture.ts';
+import { createGestureState, pointerCancel, pointerDown, pointerMove, pointerUp, type Zone } from './input/gesture.ts';
 import { createCanvas2DRenderer } from './render/canvas2d.ts';
 import type { Renderer } from './render/types.ts';
 import { DT } from './sim/constants.ts';
+import { P } from './sim/params.ts';
 import type { Command, World } from './sim/types.ts';
 import { createWorld, defaultConfig, step } from './sim/world.ts';
 import { createHud } from './ui/hud.ts';
@@ -17,7 +18,6 @@ const points = Number(params.get('points') ?? 15);
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 const hud = createHud(document.querySelector<HTMLElement>('#hud')!);
-const jumpButton = document.querySelector<HTMLButtonElement>('#jump')!;
 const overlay = debug ? createOverlay(document.querySelector<HTMLElement>('#debug')!) : null;
 
 function newSeed(): number {
@@ -78,7 +78,12 @@ if (debug || params.get('tune') === '1') {
 }
 
 // --- Input --------------------------------------------------------------------------
-const gesture = createGestureState((sx, sy) => renderer.screenToCourtX(sx, sy));
+// Zones: top band = jump, own side of the net = move, opponent side = flick.
+function zoneOf(sx: number, sy: number): Zone {
+  if (sy < window.innerHeight * P.JUMP_ZONE_RATIO) return 'jump';
+  return sx < renderer.courtToScreen(0, 0).x ? 'move' : 'flick';
+}
+const gesture = createGestureState((sx, sy) => renderer.screenToCourtX(sx, sy), zoneOf);
 const pushAll = (cmds: Command[]) => {
   for (const c of cmds) pending.push(c);
 };
@@ -99,11 +104,6 @@ canvas.addEventListener('pointerup', (e) => {
 });
 canvas.addEventListener('pointercancel', (e) => {
   pushAll(pointerCancel(gesture, e.pointerId));
-});
-jumpButton.addEventListener('pointerdown', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  pending.push({ cmd: 'jump' });
 });
 // Keyboard for desktop testing: arrows move, space jumps, W/D/S flick up/forward/down-forward.
 window.addEventListener('keydown', (e) => {
@@ -129,7 +129,6 @@ function frame(now: number): void {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
   fps = fps * 0.95 + (dt > 0 ? 1 / dt : 60) * 0.05;
-  pushAll(tick(gesture, now));
   if (!host.paused) {
     acc += dt;
     while (acc >= DT) {
@@ -138,7 +137,7 @@ function frame(now: number): void {
     }
   }
   renderer.render(world);
-  hud.update(world);
+  hud.update(world, renderer.courtToScreen(0, 0).x, window.innerHeight * P.JUMP_ZONE_RATIO);
   if (overlay && world.frame % 4 === 0) overlay(world, fps);
   requestAnimationFrame(frame);
 }
