@@ -206,6 +206,9 @@ export function createCanvas2DRenderer(canvas: HTMLCanvasElement): Renderer {
     courtToScreen(x, y) {
       return { x: sx(x), y: sy(y) };
     },
+    info() {
+      return { view: '2d', ready: true };
+    },
     probe(world) {
       const items: ProbeItem[] = [];
       const add = (name: string, x: number, y: number) => {

@@ -14,6 +14,7 @@ export interface GameHost {
   replay(): { seed: number; autoplay: boolean; points: number; commands: ({ f: number } & Command)[] };
   probe(): ProbeItem[];
   courtToScreen(x: number, y: number): { x: number; y: number };
+  renderInfo(): Record<string, unknown>;
 }
 
 export interface DebugApi {
@@ -29,6 +30,8 @@ export interface DebugApi {
   exportReplay(): string;
   restart(opts?: { seed?: number; autoplay?: boolean }): void;
   getParams(): Record<string, number>;
+  /** Renderer status: view ('2d' / '3d'), quality tier, fps, whether assets finished loading. */
+  renderInfo(): Record<string, unknown>;
 }
 
 export function stateSummary(w: World): unknown {
@@ -77,6 +80,7 @@ export function installDebugApi(host: GameHost): DebugApi {
     exportReplay: () => JSON.stringify(host.replay()),
     restart: (opts) => host.restart(opts),
     getParams: () => ({ ...P }),
+    renderInfo: () => host.renderInfo(),
   };
   (window as unknown as { __game: DebugApi }).__game = api;
   return api;

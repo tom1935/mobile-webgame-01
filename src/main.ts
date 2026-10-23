@@ -1,10 +1,11 @@
 // Browser entry: fixed-step game loop + touch input + rendering + HUD + debug hooks.
-// URL options: ?debug=1  ?tune=1  ?seed=123  ?autoplay=1  ?points=7  ?view=2d
+// URL options: ?debug=1  ?tune=1  ?seed=123  ?autoplay=1  ?points=7  ?view=2d  ?quality=high|low
 import { installDebugApi, type GameHost } from './debug/api.ts';
 import { createOverlay } from './debug/overlay.ts';
 import { installTunePanel } from './debug/tune-panel.ts';
 import { createGestureState, pointerCancel, pointerDown, pointerMove, pointerUp, type Zone } from './input/gesture.ts';
 import { createCanvas2DRenderer } from './render/canvas2d.ts';
+import { createThreeRenderer, webglAvailable } from './render/three3d.ts';
 import type { Renderer } from './render/types.ts';
 import { DT } from './sim/constants.ts';
 import { P } from './sim/params.ts';
@@ -30,9 +31,16 @@ let world: World = createWorld(
 let pending: Command[] = [];
 let recorded: ({ f: number } & Command)[] = [];
 
-const renderer: Renderer = createCanvas2DRenderer(canvas);
+// 3D by default; ?view=2d (or no WebGL2) uses the simple 2D side view.
+const quality = params.get('quality');
+const renderer: Renderer =
+  params.get('view') === '2d' || !webglAvailable()
+    ? createCanvas2DRenderer(canvas)
+    : createThreeRenderer(canvas, world, quality === 'high' || quality === 'low' ? quality : null);
 
+let resized = true;
 function resize(): void {
+  resized = true;
   renderer.resize(window.innerWidth, window.innerHeight, Math.min(window.devicePixelRatio || 1, 2));
 }
 window.addEventListener('resize', resize);
@@ -51,6 +59,8 @@ const host: GameHost = {
   stepFrames: (n) => {
     for (let i = 0; i < n; i++) stepOnce();
     renderer.render(world);
+    drawnWorld = world;
+    drawnFrame = world.frame;
   },
   restart: (opts = {}) => {
     world = createWorld(
@@ -71,6 +81,7 @@ const host: GameHost = {
   }),
   probe: () => renderer.probe(world),
   courtToScreen: (x, y) => renderer.courtToScreen(x, y),
+  renderInfo: () => renderer.info(),
 };
 if (debug) installDebugApi(host);
 if (debug || params.get('tune') === '1') {
@@ -88,19 +99,20 @@ const pushAll = (cmds: Command[]) => {
   for (const c of cmds) pending.push(c);
 };
 
+// e.timeStamp = when the touch happened, so a slow frame does not stretch a flick past FLICK_MAX_MS.
 canvas.addEventListener('pointerdown', (e) => {
   if (world.phase === 'matchEnd') {
     host.restart();
     return;
   }
   canvas.setPointerCapture(e.pointerId);
-  pushAll(pointerDown(gesture, e.pointerId, e.clientX, e.clientY, performance.now()));
+  pushAll(pointerDown(gesture, e.pointerId, e.clientX, e.clientY, e.timeStamp));
 });
 canvas.addEventListener('pointermove', (e) => {
-  pushAll(pointerMove(gesture, e.pointerId, e.clientX, e.clientY, performance.now()));
+  pushAll(pointerMove(gesture, e.pointerId, e.clientX, e.clientY, e.timeStamp));
 });
 canvas.addEventListener('pointerup', (e) => {
-  pushAll(pointerUp(gesture, e.pointerId, e.clientX, e.clientY, performance.now()));
+  pushAll(pointerUp(gesture, e.pointerId, e.clientX, e.clientY, e.timeStamp));
 });
 canvas.addEventListener('pointercancel', (e) => {
   pushAll(pointerCancel(gesture, e.pointerId));
@@ -119,6 +131,8 @@ window.addEventListener('keydown', (e) => {
 // --- Loop ---------------------------------------------------------------------------
 let acc = 0;
 let last = performance.now();
+let drawnWorld: World | null = null;
+let drawnFrame = -1;
 let fps = 60;
 document.addEventListener('visibilitychange', () => {
   last = performance.now();
@@ -136,7 +150,13 @@ function frame(now: number): void {
       acc -= DT;
     }
   }
-  renderer.render(world);
+  // While paused, draw only when something changed (step / restart / resize): the 3D view is heavy.
+  if (!host.paused || world !== drawnWorld || world.frame !== drawnFrame || resized) {
+    renderer.render(world);
+    drawnWorld = world;
+    drawnFrame = world.frame;
+    resized = false;
+  }
   hud.update(world, renderer.courtToScreen(0, 0).x, window.innerHeight * P.JUMP_ZONE_RATIO);
   if (overlay && world.frame % 4 === 0) overlay(world, fps);
   requestAnimationFrame(frame);
