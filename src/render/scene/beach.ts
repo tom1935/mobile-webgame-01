@@ -75,6 +75,7 @@ export function createBeach(
     aoMap2: { value: null as THREE.Texture | null },
     cavity: { value: 0 },
     contrast: { value: 1 },
+    sandGamma: { value: 1 },
     sandLight: { value: new THREE.Color(LOOK.SAND_LIGHT) },
     sandDark: { value: new THREE.Color(LOOK.SAND_DARK) },
     wetMean: { value: new THREE.Color(1, 1, 1) },
@@ -120,7 +121,7 @@ varying vec3 vSandWorld;
 uniform float wetReach, waterlineZ, macroScale, macroStrength, wetDarken;
 uniform vec3 dryMean, wetMean, sunDir, sandLight, sandDark;
 uniform sampler2D wetMap, wetNormal, wetRough, aoMap2, heightMap;
-uniform float cavity, contrast, heightScale, uvRepeat;
+uniform float cavity, contrast, heightScale, uvRepeat, sandGamma;
 float sandWet;
 float sandSelfShadow = 1.0;
 vec2 sandUv, sandDx, sandDy;
@@ -178,7 +179,8 @@ float sandDepth(vec2 uv) { return heightScale * (1.0 - textureGrad(heightMap, uv
   float v = dot(textureGrad(map, sandUv, sandDx, sandDy).rgb / dryMean, vec3(0.2126, 0.7152, 0.0722));
   v *= mix(1.0, textureGrad(aoMap2, sandUv, sandDx, sandDy).r, cavity);
   v *= mix(1.0, dot(texture2D(map, vMapUv * macroScale + vec2(0.37, 0.71)).rgb / dryMean, vec3(0.2126, 0.7152, 0.0722)), macroStrength);
-  vec3 dryC = mix(sandDark, sandLight, clamp(0.5 + (v - 1.0) * contrast, 0.0, 1.0));
+  // Tone curve: gamma < 1 pushes the midtones toward sandLight, > 1 toward sandDark.
+  vec3 dryC = mix(sandDark, sandLight, pow(clamp(0.5 + (v - 1.0) * contrast, 0.0, 1.0), sandGamma));
   vec3 wetC = textureGrad(wetMap, sandUv, sandDx, sandDy).rgb / wetMean * wetDarken;
   diffuseColor.rgb *= mix(dryC, wetC, sandWet);
 #endif`,
@@ -219,6 +221,7 @@ float sandDepth(vec2 uv) { return heightScale * (1.0 - textureGrad(heightMap, uv
       uniforms.macroStrength.value = LOOK.SAND_MACRO;
       uniforms.cavity.value = LOOK.SAND_CAVITY;
       uniforms.contrast.value = LOOK.SAND_CONTRAST;
+      uniforms.sandGamma.value = LOOK.SAND_GAMMA;
       mat.normalScale.setScalar(LOOK.SAND_NORMAL);
       const repeat = 1 / (tileMeters * LOOK.SAND_TILE);
       for (const t of textures) t.repeat.setScalar(repeat);
