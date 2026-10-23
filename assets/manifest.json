@@ -22,5 +22,13 @@
     "license": "CC0",
     "tileMeters": 2,
     "roughness": "assets/textures/damp_beach_sand_rough_1k.jpg"
+  },
+  "foam": {
+    "color": "assets/textures/Foam002_1K-JPG_Color.jpg",
+    "opacity": "assets/textures/Foam002_1K-JPG_Opacity.jpg",
+    "normal": "assets/textures/Foam002_1K-JPG_NormalGL.jpg",
+    "roughness": "assets/textures/Foam002_1K-JPG_Roughness.jpg",
+    "source": "https://ambientcg.com/view?id=Foam002",
+    "license": "CC0"
   }
 }

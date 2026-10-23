@@ -3,9 +3,10 @@
 //
 //   node tools/fetch-assets.mjs            # fetch what is missing
 //   node tools/fetch-assets.mjs --force    # re-download
-//   node tools/fetch-assets.mjs --only sky # just one kind (sky | sand | wetSand)
+//   node tools/fetch-assets.mjs --only sky # just one kind (sky | sand | wetSand | foam)
 //
-// Needs network access to api.polyhaven.com, dl.polyhaven.org (and ambientcg.com for the fallback).
+// Needs network access to api.polyhaven.com, dl.polyhaven.org, and ambientcg.com + acg-download.struffelproductions.com
+// (foam, and the sand fallback).
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
@@ -29,6 +30,8 @@ const SAND_CANDIDATES = ['sand_03', 'sand_02', 'dense_sand'];
 // Wet sand for the band along the waterline.
 const WET_SAND_CANDIDATES = ['damp_beach_sand', 'damp_beach_sand_02'];
 const AMBIENTCG_SAND = ['Ground054', 'Ground080', 'Ground055'];
+// Sea foam (ambientCG). Foam002 has the clearest lace network of the three (compared color + opacity maps).
+const FOAM_CANDIDATES = ['Foam002', 'Foam003', 'Foam001'];
 
 async function json(url) {
   const r = await fetch(url);
@@ -120,6 +123,33 @@ async function fetchSandAmbientCG() {
   throw new Error('no ambientCG sand texture found');
 }
 
+async function fetchFoam(candidates = FOAM_CANDIDATES) {
+  // ambientCG ships zips; keep only the maps the sea uses.
+  const { execFileSync } = await import('node:child_process');
+  for (const id of candidates) {
+    const zip = `assets/textures/${id}_1K-JPG.zip`;
+    try {
+      await download(`https://ambientcg.com/get?file=${id}_1K-JPG.zip`, zip);
+    } catch {
+      continue;
+    }
+    const keep = ['Color', 'Opacity', 'NormalGL', 'Roughness'].map((k) => `${id}_1K-JPG_${k}.jpg`);
+    execFileSync('unzip', ['-o', '-q', '-j', zip, ...keep, '-d', 'assets/textures']);
+    execFileSync('rm', [zip]);
+    console.log('foam (ambientCG):', id);
+    const p = (k) => `assets/textures/${id}_1K-JPG_${k}.jpg`;
+    return {
+      color: p('Color'),
+      opacity: p('Opacity'),
+      normal: p('NormalGL'),
+      roughness: p('Roughness'),
+      source: `https://ambientcg.com/view?id=${id}`,
+      license: 'CC0',
+    };
+  }
+  throw new Error('no ambientCG foam texture found');
+}
+
 if ((!manifest.sky || force) && (!only || only === 'sky')) {
   try {
     manifest.sky = await fetchSky();
@@ -144,6 +174,13 @@ if ((!manifest.wetSand || force) && (!only || only === 'wetSand')) {
     manifest.wetSand = await fetchSandPolyHaven(WET_SAND_CANDIDATES);
   } catch (e) {
     console.error('wet sand failed:', e.message);
+  }
+}
+if ((!manifest.foam || force) && (!only || only === 'foam')) {
+  try {
+    manifest.foam = await fetchFoam(pickId ? [pickId] : FOAM_CANDIDATES);
+  } catch (e) {
+    console.error('foam failed:', e.message);
   }
 }
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
