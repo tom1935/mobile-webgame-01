@@ -6,10 +6,12 @@
 //   node tools/sim-cli.ts --autoplay --trace 6 --frames 300   # positions every 6 frames
 //   node tools/sim-cli.ts --autoplay --ascii 120,180,240      # court drawings at given frames
 //   node tools/sim-cli.ts --ascii-on hit --frames 900         # court drawing at each hit event
+//   node tools/sim-cli.ts --virtual-human --matches 10        # human player driven by touch-like commands
 //   node tools/sim-cli.ts --script replay.json --events       # replay recorded human input
 import { readFileSync } from 'node:fs';
 import { renderAscii } from '../src/sim/ascii.ts';
 import type { Command, GameEvent, World } from '../src/sim/types.ts';
+import { createVirtualHuman, virtualHumanCommands } from '../src/sim/virtual-human.ts';
 import { createWorld, defaultConfig, step } from '../src/sim/world.ts';
 
 interface Args {
@@ -18,6 +20,7 @@ interface Args {
   frames: number;
   points?: number;
   autoplay: boolean;
+  virtualHuman: boolean;
   script?: string;
   events: boolean;
   trace: number;
@@ -32,6 +35,7 @@ function parseArgs(argv: string[]): Args {
     matches: 1,
     frames: 60 * 60 * 30,
     autoplay: false,
+    virtualHuman: false,
     events: false,
     trace: 0,
     ascii: new Set(),
@@ -46,6 +50,7 @@ function parseArgs(argv: string[]): Args {
     else if (k === '--frames') a.frames = Number(v());
     else if (k === '--points') a.points = Number(v());
     else if (k === '--autoplay') a.autoplay = true;
+    else if (k === '--virtual-human') a.virtualHuman = true;
     else if (k === '--script') a.script = v();
     else if (k === '--events') a.events = true;
     else if (k === '--trace') a.trace = Number(v());
@@ -53,7 +58,7 @@ function parseArgs(argv: string[]): Args {
     else if (k === '--ascii-on') for (const t of v().split(',')) a.asciiOn.add(t);
     else if (k === '--quiet') a.quiet = true;
     else if (k === '--help' || k === '-h') {
-      console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 10).join('\n'));
+      console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 11).join('\n'));
       process.exit(0);
     } else {
       console.error(`unknown arg: ${k}`);
@@ -121,11 +126,14 @@ function runMatch(args: Args, seed: number, script?: ScriptFile): MatchStats {
     whiffs: 0,
     netTouches: 0,
   };
+  const vh = args.virtualHuman ? createVirtualHuman() : null;
   let hitsThisRally = 0;
   let seen = 0;
 
   for (let i = 0; i < args.frames && world.phase !== 'matchEnd'; i++) {
-    step(world, byFrame.get(world.frame) ?? []);
+    const cmds = byFrame.get(world.frame) ?? [];
+    if (vh) cmds.push(...virtualHumanCommands(world, vh));
+    step(world, cmds);
     const newEvents: GameEvent[] = world.events.slice(seen);
     seen = world.events.length;
     for (const e of newEvents) {
