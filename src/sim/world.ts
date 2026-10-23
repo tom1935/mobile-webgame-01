@@ -49,6 +49,8 @@ function makePlayer(id: number, name: string, team: Team, z: number): Player {
     cooldown: 0,
     lastHitFrame: -999,
     lastJumpFrame: -999,
+    hangFrames: 0,
+    hangUsed: false,
   };
 }
 
@@ -106,6 +108,7 @@ export function setupServe(world: World): void {
     p.y = 0;
     p.vx = 0;
     p.vy = 0;
+    p.hangFrames = 0;
     p.swing = null;
     p.swingFrames = 0;
     p.cooldown = 0;

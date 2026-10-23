@@ -1,7 +1,8 @@
 // Browser entry: fixed-step game loop + touch input + rendering + HUD + debug hooks.
-// URL options: ?debug=1  ?seed=123  ?autoplay=1  ?points=7  ?view=2d
+// URL options: ?debug=1  ?tune=1  ?seed=123  ?autoplay=1  ?points=7  ?view=2d
 import { installDebugApi, type GameHost } from './debug/api.ts';
 import { createOverlay } from './debug/overlay.ts';
+import { installTunePanel } from './debug/tune-panel.ts';
 import { createGestureState, pointerCancel, pointerDown, pointerMove, pointerUp, tick } from './input/gesture.ts';
 import { createCanvas2DRenderer } from './render/canvas2d.ts';
 import type { Renderer } from './render/types.ts';
@@ -72,6 +73,9 @@ const host: GameHost = {
   courtToScreen: (x, y) => renderer.courtToScreen(x, y),
 };
 if (debug) installDebugApi(host);
+if (debug || params.get('tune') === '1') {
+  installTunePanel({ setPaused: (v) => (host.paused = v), isPaused: () => host.paused });
+}
 
 // --- Input --------------------------------------------------------------------------
 const gesture = createGestureState((sx, sy) => renderer.screenToCourtX(sx, sy));

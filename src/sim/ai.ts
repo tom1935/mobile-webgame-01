@@ -1,6 +1,6 @@
 // Bot brain. Reads the world, writes targetX / swing / jump requests for one player.
 import { NET_HEIGHT, REACH_TOP, SERVE_BOT_DELAY_FRAMES } from './constants.ts';
-import { JUMP_PEAK, JUMP_RISE_FRAMES, jump, onGround, sideSign } from './player.ts';
+import { jumpPeak, jumpRiseFrames, jump, onGround, sideSign } from './player.ts';
 import { interceptX, teamPlayers, touchesOf } from './rules.ts';
 import { range, next } from './rng.ts';
 import { makeIntent, serveIntent } from './shots.ts';
@@ -11,7 +11,8 @@ export interface BotAction {
   jumped?: boolean;
 }
 
-const SPIKE_CONTACT_Y = JUMP_PEAK + REACH_TOP - 0.25;
+/** Ball height where a jumping bot meets the ball for a spike. */
+const spikeContactY = () => jumpPeak() + REACH_TOP - 0.25;
 
 function teamIndex(world: World, p: Player): number {
   return teamPlayers(world, p.team).indexOf(p);
@@ -100,15 +101,15 @@ export function updateBot(world: World, p: Player, diff: Difficulty): BotAction 
       const pt = plan.path[i];
       const prev = plan.path[Math.max(0, i - 1)];
       if (pt.x * s <= 0 || pt.x * s > 3.5) continue;
-      if (pt.y > SPIKE_CONTACT_Y || pt.y >= prev.y) continue;
+      if (pt.y > spikeContactY() || pt.y >= prev.y) continue;
       if (pt.y < NET_HEIGHT + 0.3) break;
       const framesUntil = i + 1 - elapsed;
       p.targetX = pt.x;
-      if (onGround(p) && Math.abs(p.x - pt.x) < 0.45 && framesUntil <= JUMP_RISE_FRAMES + 1) {
+      if (onGround(p) && Math.abs(p.x - pt.x) < 0.45 && framesUntil <= jumpRiseFrames() + 1) {
         if (jump(p)) action.jumped = true;
       }
       // Swing only near the top of the jump so the contact point is high.
-      if (!onGround(p) && (p.vy < 1.5 || world.ball.y > SPIKE_CONTACT_Y - 0.2)) {
+      if (!onGround(p) && (p.vy < 1.5 || world.ball.y > spikeContactY() - 0.2)) {
         if (!p.swing || p.swing.kind !== 'spike') p.swing = attackIntent(world, p, diff, true);
         p.swingFrames = 2;
       }

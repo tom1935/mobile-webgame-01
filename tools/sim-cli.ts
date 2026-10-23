@@ -8,8 +8,10 @@
 //   node tools/sim-cli.ts --ascii-on hit --frames 900         # court drawing at each hit event
 //   node tools/sim-cli.ts --virtual-human --matches 10        # human player driven by touch-like commands
 //   node tools/sim-cli.ts --script replay.json --events       # replay recorded human input
+//   node tools/sim-cli.ts --autoplay --param T_SET=2.5         # override a tuning value (or --params file.json)
 import { readFileSync } from 'node:fs';
 import { renderAscii } from '../src/sim/ascii.ts';
+import { setParams } from '../src/sim/params.ts';
 import type { Command, GameEvent, World } from '../src/sim/types.ts';
 import { createVirtualHuman, virtualHumanCommands } from '../src/sim/virtual-human.ts';
 import { createWorld, defaultConfig, step } from '../src/sim/world.ts';
@@ -57,8 +59,12 @@ function parseArgs(argv: string[]): Args {
     else if (k === '--ascii') for (const f of v().split(',')) a.ascii.add(Number(f));
     else if (k === '--ascii-on') for (const t of v().split(',')) a.asciiOn.add(t);
     else if (k === '--quiet') a.quiet = true;
+    else if (k === '--param') {
+      const [key, val] = v().split('=');
+      setParams({ [key]: Number(val) });
+    } else if (k === '--params') setParams(JSON.parse(readFileSync(v(), 'utf8')));
     else if (k === '--help' || k === '-h') {
-      console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 11).join('\n'));
+      console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 12).join('\n'));
       process.exit(0);
     } else {
       console.error(`unknown arg: ${k}`);

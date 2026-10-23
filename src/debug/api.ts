@@ -3,6 +3,7 @@
 import { renderAscii } from '../sim/ascii.ts';
 import type { Command, GameEvent, World } from '../sim/types.ts';
 import type { ProbeItem } from '../render/types.ts';
+import { P } from '../sim/params.ts';
 
 export interface GameHost {
   world(): World;
@@ -27,6 +28,7 @@ export interface DebugApi {
   courtToScreen(x: number, y: number): { x: number; y: number };
   exportReplay(): string;
   restart(opts?: { seed?: number; autoplay?: boolean }): void;
+  getParams(): Record<string, number>;
 }
 
 export function stateSummary(w: World): unknown {
@@ -73,6 +75,7 @@ export function installDebugApi(host: GameHost): DebugApi {
     courtToScreen: (x, y) => host.courtToScreen(x, y),
     exportReplay: () => JSON.stringify(host.replay()),
     restart: (opts) => host.restart(opts),
+    getParams: () => ({ ...P }),
   };
   (window as unknown as { __game: DebugApi }).__game = api;
   return api;

@@ -1,18 +1,7 @@
 // Turning intents (pass / set / spike ...) into ball velocities, and flicks into intents.
+import { P } from './params.ts';
 import { solveShot } from './ball.ts';
-import {
-  COURT_HALF,
-  HARD_BALL_SPEED,
-  MAX_ATTACK_VX,
-  NET_HEIGHT,
-  REACH_X,
-  T_DRIVE,
-  T_LOB,
-  T_PASS,
-  T_SERVE,
-  T_SET,
-  T_SPIKE,
-} from './constants.ts';
+import { COURT_HALF, NET_HEIGHT, REACH_X } from './constants.ts';
 import { onGround, sideSign } from './player.ts';
 import { gauss, next, range } from './rng.ts';
 import type { Ball, Player, ShotKind, SwingIntent, World } from './types.ts';
@@ -32,16 +21,16 @@ export function clampOppCourt(team: 0 | 1, x: number): number {
 export function makeIntent(kind: ShotKind, targetX: number, error: number): SwingIntent {
   const flightTime =
     kind === 'pass'
-      ? T_PASS
+      ? P.T_PASS
       : kind === 'set'
-        ? T_SET
+        ? P.T_SET
         : kind === 'lob'
-          ? T_LOB
+          ? P.T_LOB
           : kind === 'drive'
-            ? T_DRIVE
+            ? P.T_DRIVE
             : kind === 'spike'
-              ? T_SPIKE
-              : T_SERVE;
+              ? P.T_SPIKE
+              : P.T_SERVE;
   return { kind, targetX, flightTime, error };
 }
 
@@ -79,7 +68,7 @@ export function resolveHit(
   const offset = Math.max(0, Math.abs(ball.x - p.x) - 0.3) / (REACH_X - 0.3);
   // Hard incoming balls (spikes, drives; not floaty serves/passes) are harder to control and may be shanked.
   const incoming = Math.hypot(ball.vx, ball.vy);
-  const cleanChance = Math.max(0.1, Math.min(1, 1 - Math.max(0, incoming - HARD_BALL_SPEED) * 0.25 - offset * 0.3));
+  const cleanChance = Math.max(0.1, Math.min(1, 1 - Math.max(0, incoming - P.HARD_BALL_SPEED) * 0.25 - offset * 0.3));
   if (next(world.rng) > cleanChance) {
     // Failed dig: half the time the ball just goes past the player untouched.
     if (next(world.rng) < 0.5) return null;
@@ -87,7 +76,7 @@ export function resolveHit(
     const vy = range(world.rng, 0.5, 4.5);
     return { kind: 'shank', targetX: ball.x, vx, vy };
   }
-  const hardness = Math.max(0, incoming - HARD_BALL_SPEED) * 0.1;
+  const hardness = Math.max(0, incoming - P.HARD_BALL_SPEED) * 0.1;
   const sigma = intent.error + 0.5 * offset + hardness;
   targetX += gauss(world.rng, sigma);
 
@@ -96,7 +85,7 @@ export function resolveHit(
 
   let T = kind === intent.kind ? intent.flightTime : makeIntent(kind, 0, 0).flightTime;
   // Cap horizontal speed so attacks stay readable on a phone screen.
-  T = Math.max(T, Math.abs(targetX - ball.x) / MAX_ATTACK_VX);
+  T = Math.max(T, Math.abs(targetX - ball.x) / P.MAX_ATTACK_VX);
   const v = solveShot(ball.x, ball.y, targetX, T);
   return { kind, targetX, vx: v.vx, vy: v.vy };
 }

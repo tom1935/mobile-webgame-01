@@ -148,6 +148,23 @@ check('real-time loop advances', s.frame > 120, `frame=${s.frame}`);
 check('no invariant violations', !log.some((e) => e.type === 'violation'));
 check('no page errors', errors.length === 0, errors.join(' | '));
 
+// 6. Tuning panel: moving a slider changes the live value
+await page.goto(`${url}?debug=1&tune=1&seed=5`);
+await page.waitForFunction(() => window.__game !== undefined);
+await page.evaluate(() => localStorage.clear());
+await page.locator('#tune-toggle').click();
+const slider = page.locator('#tune-panel input[type=range]').first();
+await slider.evaluate((el) => {
+  el.value = '9.5';
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+});
+const tuned = await G(() => window.__game.getParams());
+check('tune panel slider changes PLAYER_SPEED', tuned.PLAYER_SPEED === 9.5, `PLAYER_SPEED=${tuned.PLAYER_SPEED}`);
+const s0 = await state();
+await sleep(500);
+const s1 = await state();
+check('game keeps running with the panel open', s1.frame > s0.frame);
+
 if (shot) {
   await page.screenshot({ path: shot });
   console.log(`screenshot: ${shot}`);

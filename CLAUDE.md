@@ -21,4 +21,5 @@
 - `npm test`（= `node --test "tests/*.test.ts"`）: ロジック・ジェスチャのテスト
 - `npm run e2e` : スマホ横向きChromiumに実タッチを送り `window.__game` で結果を確認（グローバルの tsc / playwright を使用）
 - ブラウザで `?debug=1` : 座標オーバーレイと `window.__game`（getState / step / input / getLog / ascii / probe / exportReplay）
+- 調整値は `src/sim/params.ts` の `P`（実行時に変更可）。ブラウザは `?tune=1` のスライダー、CLIは `--param KEY=VAL`。値は使う時に `P.X` で読む（モジュール定数にコピーしない）
 - 長いログを読む調査はサブエージェントに任せ、結論だけ受け取る
