@@ -5,5 +5,22 @@
     "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
     "license": "CC0"
   },
-  "sand": null
+  "sand": {
+    "color": "assets/textures/sand_03_diff_1k.jpg",
+    "normal": "assets/textures/sand_03_nor_gl_1k.jpg",
+    "source": "https://polyhaven.com/a/sand_03",
+    "license": "CC0",
+    "tileMeters": 2,
+    "roughness": "assets/textures/sand_03_rough_1k.jpg",
+    "ao": "assets/textures/sand_03_ao_1k.jpg",
+    "height": "assets/textures/sand_03_disp_1k.jpg"
+  },
+  "wetSand": {
+    "color": "assets/textures/damp_beach_sand_diff_1k.jpg",
+    "normal": "assets/textures/damp_beach_sand_nor_gl_1k.jpg",
+    "source": "https://polyhaven.com/a/damp_beach_sand",
+    "license": "CC0",
+    "tileMeters": 2,
+    "roughness": "assets/textures/damp_beach_sand_rough_1k.jpg"
+  }
 }

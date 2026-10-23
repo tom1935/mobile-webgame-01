@@ -10,12 +10,15 @@ export interface SandAsset {
   color: string;
   normal: string;
   roughness?: string;
+  ao?: string; // ambient occlusion: darkens the cavities
+  height?: string; // displacement (height) map: parallax and self-shadowing of the relief
   tileMeters: number; // texture repeats every N meters
 }
 
 export interface Manifest {
   sky: SkyAsset | null;
   sand: SandAsset | null;
+  wetSand: SandAsset | null;
 }
 
 export async function loadManifest(): Promise<Manifest> {
@@ -23,8 +26,8 @@ export async function loadManifest(): Promise<Manifest> {
     const r = await fetch('assets/manifest.json');
     if (!r.ok) throw new Error(String(r.status));
     const m = (await r.json()) as Partial<Manifest>;
-    return { sky: m.sky ?? null, sand: m.sand ?? null };
+    return { sky: m.sky ?? null, sand: m.sand ?? null, wetSand: m.wetSand ?? null };
   } catch {
-    return { sky: null, sand: null };
+    return { sky: null, sand: null, wetSand: null };
   }
 }

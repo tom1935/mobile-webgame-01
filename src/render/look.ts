@@ -8,10 +8,18 @@ export const DEFAULT_LOOK = {
   SKY_EXPOSURE: 1.0,
   SKY_SAT: 1.0, // saturation multiplier
   SKY_ZENITH: 0.0, // 0..1: darken toward the top of the sky (deeper blue overhead)
-  // Lights
-  SUN_INTENSITY: 2.4,
-  ENV_INTENSITY: 1.0, // image-based light from the HDRI
-  HEMI_INTENSITY: 0.35,
+  // Sand: the texture's average color is normalized to this (sRGB hex), detail is kept
+  SAND_ALBEDO: 0xf0d0a0,
+  SAND_MACRO: 0.35, // strength of the large-scale copy that hides tiling
+  SAND_TILE: 2, // texture scale multiplier (2 = features twice as big)
+  SAND_NORMAL: 1.8, // normal map strength
+  SAND_CAVITY: 0.8, // 0..1: darken cavities with the AO map (also tints them warmer)
+  SAND_CONTRAST: 1.2, // detail contrast around the average color
+  SAND_HEIGHT: 0, // relief depth (m) for parallax + self-shadow (0 = off); scales with SAND_TILE
+  // Lights (balanced so a sun shadow on the sand is ~0.78x the lit sand, as measured in the reference)
+  SUN_INTENSITY: 3.6,
+  ENV_INTENSITY: 1.6, // image-based light from the HDRI
+  HEMI_INTENSITY: 0.5,
   // Haze on land and props (the sea and sky are not fogged): factor = max * (1 - exp(-(d - start) / length))
   FOG_START: 1e6, // meters from the camera where haze begins (1e6 = off)
   FOG_LENGTH: 150, // meters

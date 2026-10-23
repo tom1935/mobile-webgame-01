@@ -9,6 +9,9 @@ import { Sky } from 'three/addons/objects/Sky.js';
 import { Water } from 'three/addons/objects/Water.js';
 import { LOOK } from '../look.ts';
 import type { Manifest } from './assets.ts';
+import { createBeach, SEA_LEVEL } from './beach.ts';
+
+export { SEA_LEVEL };
 
 /**
  * Sun: measured from the net post's shadow in the reference picture: ~51° up, behind the court and
@@ -16,8 +19,6 @@ import type { Manifest } from './assets.ts';
  */
 export const SUN_DIR = new THREE.Vector3(0.361, 0.777, -0.515).normalize();
 
-export const SEA_LEVEL = -0.12;
-const SHORE_Z = -11; // sand starts sloping into the sea behind the court
 
 export interface Environment {
   sun: THREE.DirectionalLight;
@@ -135,43 +136,14 @@ export function createEnvironment(
   scene.add(water);
 
   // --- Sand -----------------------------------------------------------------------
-  // One big subdivided plane; behind the court it slopes under the sea to make the shoreline.
-  const sandGeo = new THREE.PlaneGeometry(400, 120, 200, 80);
-  sandGeo.rotateX(-Math.PI / 2);
-  sandGeo.translate(0, 0, -15 + 60); // z from -75 to 45
-  const pos = sandGeo.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const z = pos.getZ(i);
-    if (z < SHORE_Z) pos.setY(i, -Math.pow(SHORE_Z - z, 1.3) * 0.06);
-  }
-  sandGeo.computeVertexNormals();
-  const sandMat = new THREE.MeshStandardMaterial({ color: 0xdcb57e, roughness: 0.95, metalness: 0 });
-  if (manifest.sand) {
-    const s = manifest.sand;
-    const tl = new THREE.TextureLoader();
-    const repeat = (t: THREE.Texture) => {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(400 / s.tileMeters, 120 / s.tileMeters);
-      t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      return t;
-    };
-    const color = repeat(tl.load(s.color, () => onLoaded('sand', true)));
-    color.colorSpace = THREE.SRGBColorSpace;
-    sandMat.map = color;
-    sandMat.color.set(0xffffff);
-    sandMat.normalMap = repeat(tl.load(s.normal));
-    sandMat.normalScale.set(1.2, 1.2);
-    if (s.roughness) sandMat.roughnessMap = repeat(tl.load(s.roughness));
-  }
-  const sand = new THREE.Mesh(sandGeo, sandMat);
-  sand.receiveShadow = true;
-  scene.add(sand);
+  const beach = createBeach(scene, renderer, manifest, onLoaded, SUN_DIR);
 
   return {
     sun,
     water,
     update(dt) {
       water.material.uniforms.time.value += dt * 0.6;
+      beach.update();
       sun.intensity = LOOK.SUN_INTENSITY;
       hemi.intensity = LOOK.HEMI_INTENSITY;
       if (manifest.sky) scene.environmentIntensity = LOOK.ENV_INTENSITY;
