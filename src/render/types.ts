@@ -19,4 +19,6 @@ export interface Renderer {
   courtToScreen(x: number, y: number): { x: number; y: number };
   /** Where things are drawn on screen, for automated checks without screenshots. */
   probe(world: World): ProbeItem[];
+  /** Renderer status for debugging (view kind, quality tier, asset loading...). */
+  info(): Record<string, unknown>;
 }

@@ -5,8 +5,15 @@
 ## 基本
 - スマホ横持ち・Webブラウザ（GitHub Pages）
 - 2対2。操作するのは自分（A1）だけ。味方（A2）・相手（B1, B2）はbot
-- 見た目は3D（予定: Three.js）、ゲームとしては横から見た2D（x = コート長手方向, y = 高さ）
-  - 現在は依存なしの2D表示（`src/render/canvas2d.ts`）で動作。3D表示は後で追加し、2Dはデバッグ表示として残す
+- 見た目は3D（Three.js, `src/render/three3d.ts`）、ゲームとしては横から見た2D（x = コート長手方向, y = 高さ, 選手の `z` は描画用の奥行き）
+  - `?view=2d` で依存なしの2D表示（`src/render/canvas2d.ts`）。WebGL2 が使えない時も2D
+  - 画質: `?quality=high|low`。未指定なら high で始め、FPSが低ければ low に落とす（high = 影2048・MSAA・ブルーム・被写界深度）
+
+## 3D素材（`assets/`）
+- 方針: 素材で作れる部分は素材を使い、自作しない
+- 使用中: Kenney Nature Kit（CC0, ヤシ・岩・草）、three.js の `waternormals.jpg`（MIT, 海）
+- 未取得（仮置き中）: 空のHDRI・砂のPBRテクスチャ（Poly Haven / ambientCG, CC0）。`node tools/fetch-assets.mjs` で取得して `assets/manifest.json` に記録すると自動で使われる（要ネットワーク許可: api.polyhaven.com, dl.polyhaven.org, ambientcg.com）。未取得の間は空=three の Sky シェーダー、砂=単色
+- キャラは未定（カプセルで仮置き）。Kenney Mini Characters は頭身・雰囲気が参考画像と違いすぎるため不採用
 
 ## 操作
 画面を3つの領域に分け、入力が競合しないようにしている（最初の1点が終わるまで点線とラベルで案内）。
@@ -47,7 +54,7 @@
 ジャンプは最高点で `JUMP_HANG_FRAMES` フレーム止まる（スパイクのタイミングを取りやすくするため）。
 
 ## 今後のTODO
-- Three.jsの3D表示（画像の雰囲気: 青空・海・ヤシの木・ちびキャラ）
-- CC0のキャラクター素材（glTF）とアニメーション
+- 空HDRI・砂テクスチャの取得（上記）。ヤシ・岩も参考画像に合う写実寄りの素材に差し替える
+- 参考画像に合うキャラクター素材（glTF）とアニメーション。ネットの網・ボールの素材、遠景の島
 - 効果音・BGM、タイトル画面、難易度選択
 - 実機での操作感の調整（フリック判定のしきい値など）

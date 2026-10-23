@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Beach volleyball mobile web game (2v2, touch controls)",
-  "engines": { "node": ">=22.18" },
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "build": "node tools/dev-build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -13,6 +15,10 @@
     "e2e": "node tools/dev-build.mjs && node tests-e2e/play.mjs"
   },
   "devDependencies": {
+    "@types/three": "^0.180.0",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
   }
 }
