@@ -60,6 +60,7 @@ export function createThreeRenderer(
   loadManifest().then((m) => {
     if (m.sky) pending.add('sky');
     if (m.sand) pending.add('sand');
+    if (m.foam) pending.add('foam');
     env = createEnvironment(scene, renderer, m, done);
     env.sun.shadow.mapSize.setScalar(quality === 'high' ? 2048 : 1024);
     done('manifest', true);

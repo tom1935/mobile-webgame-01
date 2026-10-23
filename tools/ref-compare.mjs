@@ -9,10 +9,11 @@
 // --profile also prints a row-by-row profile of the sea band (horizon to sand), reference vs render:
 // mean color, luminance and the brightest 10% (whitecaps / foam) of each row.
 // The sea is stopped at a fixed moment (SEA_FREEZE) unless --look sets it.
+// --times 0,3,6 also writes frames.png: the sea band at those moments (SEA_FREEZE seconds), stacked, to check the motion.
 // Uses the global playwright (same as tests-e2e/play.mjs) and SwiftShader WebGL.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { measure, openRefShot, PROFILE_X, withFrozenSea } from './ref-lib.mjs';
+import { measure, openRefShot, PROFILE_X, setLook, withFrozenSea } from './ref-lib.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name, def) => {
@@ -22,6 +23,7 @@ const opt = (name, def) => {
 const quality = opt('--quality', 'low');
 const out = opt('--out', '.ref-compare');
 const look = withFrozenSea(opt('--look', ''));
+const SEA_BAND = [440, 660]; // rows of the reference picture shown in frames.png
 
 const { page, close } = await openRefShot({ quality, look, build: !args.includes('--no-build') });
 try {
@@ -40,6 +42,30 @@ try {
   writeFileSync(join(out, 'stats.json'), JSON.stringify({ regions: m.table, shadowRatio: m.shadowRatio, profile: m.profile }, null, 2));
   for (const [name, url] of Object.entries(m.images)) writeFileSync(join(out, `${name}.png`), Buffer.from(url.split(',')[1], 'base64'));
   console.log(`wrote ${out}/{render,side,overlay,gray}.png, stats.json`);
+  const times = opt('--times', '');
+  if (times) {
+    const shots = [];
+    for (const t of times.split(',').map(Number)) {
+      await setLook(page, { SEA_FREEZE: t });
+      shots.push((await measure(page, { images: true })).images.render);
+    }
+    const url = await page.evaluate(
+      ({ shots, band }) =>
+        Promise.all(shots.map((src) => new Promise((ok) => Object.assign(new Image(), { onload: (e) => ok(e.target), src })))).then((ims) => {
+          const w = ims[0].width;
+          const h = band[1] - band[0];
+          const c = Object.assign(document.createElement('canvas'), { width: w, height: (h + 4) * ims.length });
+          const g = c.getContext('2d');
+          g.fillStyle = '#fff';
+          g.fillRect(0, 0, c.width, c.height);
+          ims.forEach((im, i) => g.drawImage(im, 0, band[0], w, h, 0, i * (h + 4), w, h));
+          return c.toDataURL('image/png');
+        }),
+      { shots, band: SEA_BAND },
+    );
+    writeFileSync(join(out, 'frames.png'), Buffer.from(url.split(',')[1], 'base64'));
+    console.log(`wrote ${out}/frames.png (t = ${times})`);
+  }
 } finally {
   await close();
 }

@@ -56,7 +56,7 @@ export function createEnvironment(
   const fog = new THREE.Fog(LOOK.FOG_COLOR, LOOK.FOG_START, LOOK.FOG_START + LOOK.FOG_LENGTH);
   scene.fog = fog;
 
-  const sea = createSea(scene, renderer, SUN_DIR, onLoaded);
+  const sea = createSea(scene, renderer, manifest, SUN_DIR, onLoaded);
 
   // --- Sky ------------------------------------------------------------------------
   let skyDome: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | null = null;
