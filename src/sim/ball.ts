@@ -1,11 +1,5 @@
-import {
-  BALL_GRAVITY,
-  BALL_RADIUS,
-  DT,
-  NET_BOUNCE,
-  NET_HEIGHT,
-  NET_THICKNESS,
-} from './constants.ts';
+import { P } from './params.ts';
+import { BALL_RADIUS, DT, NET_BOUNCE, NET_HEIGHT, NET_THICKNESS } from './constants.ts';
 import type { Ball } from './types.ts';
 
 export interface BallStepResult {
@@ -20,7 +14,7 @@ const NET_ZONE = NET_THICKNESS + BALL_RADIUS;
 export function stepBall(ball: Ball): BallStepResult {
   const prevX = ball.x;
   const prevY = ball.y;
-  ball.vy -= BALL_GRAVITY * DT;
+  ball.vy -= P.BALL_GRAVITY * DT;
   ball.x += ball.vx * DT;
   ball.y += ball.vy * DT;
 
@@ -86,7 +80,7 @@ export function solveShot(
   targetX: number,
   flightTime: number,
 ): { vx: number; vy: number; flightTime: number } {
-  const g = BALL_GRAVITY;
+  const g = P.BALL_GRAVITY;
   const yt = BALL_RADIUS;
   let T = flightTime;
   for (let i = 0; i < 60; i++) {

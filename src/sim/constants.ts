@@ -10,13 +10,8 @@ export const NET_THICKNESS = 0.06; // half thickness used for collision
 export const WALL_X = 11; // players can move a bit behind the back line
 
 export const BALL_RADIUS = 0.15; // a bit bigger than real for forgiveness
-export const BALL_GRAVITY = 6.5; // floaty arcade gravity
 export const NET_BOUNCE = 0.3; // fraction of vx kept (reversed) when hitting the net
 
-export const PLAYER_SPEED = 5.0;
-export const PLAYER_ACCEL = 40;
-export const PLAYER_GRAVITY = 22;
-export const JUMP_VELOCITY = 7.4; // ~1.25 m jump (arcade)
 export const PLAYER_MIN_NET_GAP = 0.3; // players stay this far from the net
 
 // Reach box relative to the player's feet. Ball center must be inside to be hit.
@@ -37,12 +32,4 @@ export const SERVE_HOLD_HEIGHT = 1.9; // where the ball floats while waiting for
 
 export const DEFAULT_POINTS_TO_WIN = 15;
 
-// Shot flight times (seconds). Shorter = faster, flatter.
-export const T_PASS = 1.7;
-export const T_SET = 1.8;
-export const T_LOB = 1.6;
-export const T_DRIVE = 0.9;
-export const T_SPIKE = 0.4;
-export const T_SERVE = 1.7;
-export const MAX_ATTACK_VX = 13; // m/s, horizontal speed cap for any shot
-export const HARD_BALL_SPEED = 10; // m/s, incoming speed above which receiving gets harder
+// Tunable feel parameters (speeds, jump, shot flight times) live in params.ts.

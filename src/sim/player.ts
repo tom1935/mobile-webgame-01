@@ -1,15 +1,5 @@
-import {
-  DT,
-  JUMP_VELOCITY,
-  PLAYER_ACCEL,
-  PLAYER_GRAVITY,
-  PLAYER_MIN_NET_GAP,
-  PLAYER_SPEED,
-  REACH_BOTTOM,
-  REACH_TOP,
-  REACH_X,
-  WALL_X,
-} from './constants.ts';
+import { P } from './params.ts';
+import { DT, PLAYER_MIN_NET_GAP, REACH_BOTTOM, REACH_TOP, REACH_X, WALL_X } from './constants.ts';
 import type { Ball, Player, Team } from './types.ts';
 
 /** Sign of x on a team's own side: team 0 plays at x < 0. */
@@ -32,20 +22,32 @@ export function clampToSide(team: Team, x: number): number {
 }
 
 export function stepPlayer(p: Player, speedFactor: number): void {
-  const maxSpeed = PLAYER_SPEED * speedFactor;
+  const maxSpeed = P.PLAYER_SPEED * speedFactor;
   let desired = 0;
   if (p.targetX !== null) {
     const dx = p.targetX - p.x;
     desired = Math.sign(dx) * Math.min(maxSpeed, Math.abs(dx) * 8);
     if (Math.abs(dx) < 0.03) desired = 0;
   }
-  const accel = (onGround(p) ? PLAYER_ACCEL : PLAYER_ACCEL * 0.25) * DT;
+  const accel = (onGround(p) ? P.PLAYER_ACCEL : P.PLAYER_ACCEL * 0.25) * DT;
   const dv = desired - p.vx;
   p.vx += Math.max(-accel, Math.min(accel, dv));
   p.x += p.vx * DT;
 
   if (p.y > 0 || p.vy > 0) {
-    p.vy -= PLAYER_GRAVITY * DT;
+    if (p.hangFrames > 0) {
+      // Floating at the top of the jump.
+      p.hangFrames -= 1;
+      p.vy = 0;
+    } else {
+      const before = p.vy;
+      p.vy -= P.PLAYER_GRAVITY * DT;
+      if (before > 0 && p.vy <= 0 && !p.hangUsed) {
+        p.hangUsed = true;
+        p.hangFrames = Math.round(P.JUMP_HANG_FRAMES);
+        p.vy = 0;
+      }
+    }
     p.y += p.vy * DT;
     if (p.y <= 0) {
       p.y = 0;
@@ -62,8 +64,10 @@ export function stepPlayer(p: Player, speedFactor: number): void {
 
 export function jump(p: Player): boolean {
   if (!onGround(p)) return false;
-  p.vy = JUMP_VELOCITY;
+  p.vy = P.JUMP_VELOCITY;
   p.y = 0.0001;
+  p.hangUsed = false;
+  p.hangFrames = 0;
   return true;
 }
 
@@ -75,6 +79,12 @@ export function inReach(p: Player, ball: Ball): boolean {
   );
 }
 
-/** Highest point a jumping player can reach (feet peak + REACH_TOP). */
-export const JUMP_PEAK = (JUMP_VELOCITY * JUMP_VELOCITY) / (2 * PLAYER_GRAVITY);
-export const JUMP_RISE_FRAMES = Math.round(JUMP_VELOCITY / PLAYER_GRAVITY / DT);
+/** Height of the feet at the top of a jump (m). */
+export function jumpPeak(): number {
+  return (P.JUMP_VELOCITY * P.JUMP_VELOCITY) / (2 * P.PLAYER_GRAVITY);
+}
+
+/** Frames from take-off to the top of the jump. */
+export function jumpRiseFrames(): number {
+  return Math.round(P.JUMP_VELOCITY / P.PLAYER_GRAVITY / DT);
+}

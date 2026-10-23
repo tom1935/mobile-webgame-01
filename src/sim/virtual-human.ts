@@ -1,8 +1,9 @@
 // A scripted "player" that controls the human character ONLY through Commands
 // (moveTo / flick / jump), like real touch input would. Used to test that the
 // game is playable with the touch controls, without a screen.
-import { BALL_GRAVITY, DT, NET_HEIGHT, REACH_TOP, REACH_X } from './constants.ts';
-import { JUMP_PEAK, JUMP_RISE_FRAMES, onGround } from './player.ts';
+import { P } from './params.ts';
+import { DT, NET_HEIGHT, REACH_TOP, REACH_X } from './constants.ts';
+import { jumpPeak, jumpRiseFrames, onGround } from './player.ts';
 import { range } from './rng.ts';
 import { interceptX, touchesOf } from './rules.ts';
 import type { Command, World } from './types.ts';
@@ -60,7 +61,7 @@ export function virtualHumanCommands(world: World, vh: VirtualHuman): Command[] 
 
   // 3rd touch near the net: try to jump-spike.
   if (touchNo === 3) {
-    const contactY = JUMP_PEAK + REACH_TOP - 0.3;
+    const contactY = jumpPeak() + REACH_TOP - 0.3;
     for (let i = Math.max(0, sincePlan); i < plan.path.length; i++) {
       const pt = plan.path[i];
       const prev = plan.path[Math.max(0, i - 1)];
@@ -68,7 +69,7 @@ export function virtualHumanCommands(world: World, vh: VirtualHuman): Command[] 
       if (pt.y < NET_HEIGHT + 0.3) break;
       out.push({ cmd: 'moveTo', x: pt.x });
       const framesUntil = i + 1 - sincePlan;
-      if (vh.jumpedForPlan !== world.planFrame && onGround(me) && framesUntil <= JUMP_RISE_FRAMES + 1 && Math.abs(me.x - pt.x) < 0.5) {
+      if (vh.jumpedForPlan !== world.planFrame && onGround(me) && framesUntil <= jumpRiseFrames() + 1 && Math.abs(me.x - pt.x) < 0.5) {
         out.push({ cmd: 'jump' });
         vh.jumpedForPlan = world.planFrame;
       }
@@ -86,7 +87,7 @@ export function virtualHumanCommands(world: World, vh: VirtualHuman): Command[] 
   // Flick shortly before the ball reaches the player.
   const dx = Math.abs(b.x - me.x);
   const approach = Math.abs(b.vx) * DT * vh.leadFrames + REACH_X;
-  const yNext = b.y + b.vy * DT * vh.leadFrames - 0.5 * BALL_GRAVITY * (DT * vh.leadFrames) ** 2;
+  const yNext = b.y + b.vy * DT * vh.leadFrames - 0.5 * P.BALL_GRAVITY * (DT * vh.leadFrames) ** 2;
   if (vh.flickedForPlan !== world.planFrame && b.vy < 0 && dx <= approach && yNext <= REACH_TOP) {
     if (touchNo === 3) out.push(flickAt(range(world.rng, 10, 45), range(world.rng, 0.8, 2.0)));
     else out.push(flickAt(range(world.rng, 75, 105), 1.0));

@@ -27,6 +27,8 @@ export interface Player {
   /** Frame of the last hit, for animation. */
   lastHitFrame: number;
   lastJumpFrame: number;
+  hangFrames: number; // > 0 while floating at the top of a jump
+  hangUsed: boolean;
 }
 
 /** What the player tries to do with the ball when it comes into reach. */
