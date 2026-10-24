@@ -18,6 +18,29 @@ export const DEFAULT_LOOK = {
   SAND_CONTRAST: 2.5, // how far the detail spreads between SAND_DARK and SAND_LIGHT
   SAND_GAMMA: 0.6, // tone curve: < 1 = more of the sand toward SAND_LIGHT
   SAND_HEIGHT: 0, // relief depth (m) for parallax + self-shadow (0 = off); scales with SAND_TILE
+  // Sea (sea.ts). Provisional colors: matched to the reference only after waves and foam exist.
+  // Water color = seabed * T + deep * (1 - T), T = exp(-absorb * depth * (1 + viewPath / view angle))
+  SEA_BED: 0xe8d2a6, // seabed (sand) seen through shallow water
+  SEA_BED_GAIN: 1.0, // brightness of the seabed (lit sand is brighter than 1 before tone mapping)
+  SEA_DEEP: 0x0a3c8c, // color of deep water (light scattered back by the water itself)
+  SEA_ABSORB_R: 0.9, // absorption per meter, per channel (red goes first -> turquoise, then blue)
+  SEA_ABSORB_G: 0.18,
+  SEA_ABSORB_B: 0.05,
+  SEA_VIEW_PATH: 0.1, // extra light path for slanted views (0 = straight down and up only)
+  SEA_REFLECT: 0.3, // sky reflection strength (1 = physical Fresnel)
+  SEA_NORMAL: 0.35, // small-wave normal strength
+  SEA_WAVE_SCALE: 1.0, // size of the small waves (2 = twice as big)
+  SEA_GLINT: 6.0, // sun glint brightness
+  SEA_GLINT_POWER: 600, // sun glint sharpness
+  SEA_GLINT_TILT: 4, // how much steeper the waves are for glints (the sun is high, flat water never reflects it)
+  // Breaking waves (scripted loop, no physics)
+  SEA_WAVE_PERIOD: 9, // seconds between waves
+  SEA_WAVE_H: 0.5, // wave height (m) when it breaks
+  SEA_BREAK_DIST: 8, // where it breaks: meters offshore of the still waterline
+  SEA_CREST_COLOR: 0x40e0c0, // sunlight through the thin top of a wave
+  SEA_CREST_GLOW: 0.6,
+  SEA_FOAM_TILE: 4, // meters per repeat of the foam texture
+  SEA_FREEZE: -1, // >= 0: stop the sea at this time (s), for comparisons
   // Lights (balanced so a sun shadow on the sand is ~0.78x the lit sand, as measured in the reference)
   SUN_INTENSITY: 3.6,
   ENV_INTENSITY: 1.6, // image-based light from the HDRI

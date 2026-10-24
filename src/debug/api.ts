@@ -4,6 +4,7 @@ import { renderAscii } from '../sim/ascii.ts';
 import type { Command, GameEvent, World } from '../sim/types.ts';
 import type { ProbeItem } from '../render/types.ts';
 import { P } from '../sim/params.ts';
+import { LOOK, type Look } from '../render/look.ts';
 
 export interface GameHost {
   world(): World;
@@ -32,6 +33,9 @@ export interface DebugApi {
   getParams(): Record<string, number>;
   /** Renderer status: view ('2d' / '3d'), quality tier, fps, whether assets finished loading. */
   renderInfo(): Record<string, unknown>;
+  /** 3D look values (src/render/look.ts); setLook changes them for the next frame. */
+  getLook(): Record<string, number>;
+  setLook(values: Partial<Look>): void;
 }
 
 export function stateSummary(w: World): unknown {
@@ -81,6 +85,10 @@ export function installDebugApi(host: GameHost): DebugApi {
     restart: (opts) => host.restart(opts),
     getParams: () => ({ ...P }),
     renderInfo: () => host.renderInfo(),
+    getLook: () => ({ ...LOOK }),
+    setLook: (values) => {
+      for (const [k, v] of Object.entries(values)) if (k in LOOK && typeof v === 'number') LOOK[k as keyof Look] = v;
+    },
   };
   (window as unknown as { __game: DebugApi }).__game = api;
   return api;

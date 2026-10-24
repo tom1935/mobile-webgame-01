@@ -1,15 +1,15 @@
 // Sky, sun, sea and sand.
 // Sky: a CC0 HDRI from the manifest when present. Lighting uses it as is; the visible sky is drawn by a
 // dome that grades it (saturation, darker zenith) toward the reference's anime-blue sky. Without the HDRI,
-// three's physical Sky shader. Sea: three's Water with the three.js water normal map.
+// three's physical Sky shader. Sea: sea.ts (custom shader).
 // Haze (fog) applies to land and props only, with a cap so far islands stay visible (see LOOK.FOG_*).
 import * as THREE from 'three';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { Sky } from 'three/addons/objects/Sky.js';
-import { Water } from 'three/addons/objects/Water.js';
 import { LOOK } from '../look.ts';
 import type { Manifest } from './assets.ts';
 import { createBeach, SEA_LEVEL } from './beach.ts';
+import { createSea } from './sea.ts';
 
 export { SEA_LEVEL };
 
@@ -22,9 +22,7 @@ export const SUN_DIR = new THREE.Vector3(0.361, 0.777, -0.515).normalize();
 
 export interface Environment {
   sun: THREE.DirectionalLight;
-  water: Water;
   update(dt: number): void;
-  setWaterResolution(px: number): void;
 }
 
 export function createEnvironment(
@@ -57,6 +55,8 @@ export function createEnvironment(
   installCappedFog(LOOK.FOG_MAX);
   const fog = new THREE.Fog(LOOK.FOG_COLOR, LOOK.FOG_START, LOOK.FOG_START + LOOK.FOG_LENGTH);
   scene.fog = fog;
+
+  const sea = createSea(scene, renderer, manifest, SUN_DIR, onLoaded);
 
   // --- Sky ------------------------------------------------------------------------
   let skyDome: THREE.Mesh<THREE.SphereGeometry, THREE.ShaderMaterial> | null = null;
@@ -92,6 +92,7 @@ export function createEnvironment(
         const rot = yawToMatch(findSunDirection(env), SUN_DIR);
         skyDome = createSkyDome(bg, rot);
         scene.add(skyDome);
+        sea.setSky(bg, rot);
         // The HDRI's sun would light everything without shadows; the DirectionalLight is the sun instead.
         clampSun(env);
         scene.environment = pmrem.fromEquirectangular(env).texture;
@@ -108,42 +109,14 @@ export function createEnvironment(
     useSkyShader();
   }
 
-  // --- Sea ------------------------------------------------------------------------
-  const normals = new THREE.TextureLoader().load('assets/textures/waternormals.jpg', () => onLoaded('waterNormals', true));
-  normals.wrapS = normals.wrapT = THREE.RepeatWrapping;
-  const water = new Water(new THREE.PlaneGeometry(6000, 6000), {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: normals,
-    sunDirection: SUN_DIR.clone(),
-    sunColor: 0xfff6e5,
-    waterColor: 0x0b6f8c,
-    distortionScale: 2.2,
-    fog: false, // the reference keeps the far sea a clear deep blue; only land is hazed
-  });
-  water.rotation.x = -Math.PI / 2;
-  water.position.y = SEA_LEVEL;
-  water.material.uniforms.size.value = 6;
-  // Tropical sea: tint the sky reflection turquoise and keep the sun glints white.
-  const wm = water.material as THREE.ShaderMaterial;
-  wm.uniforms.seaTint = { value: new THREE.Color(0x3fb8c9) };
-  wm.fragmentShader = wm.fragmentShader
-    .replace('uniform vec3 waterColor;', 'uniform vec3 waterColor;\nuniform vec3 seaTint;')
-    .replace(
-      '( vec3( 0.1 ) + reflectionSample * 0.9 + reflectionSample * specularLight )',
-      '( vec3( 0.02, 0.08, 0.1 ) + reflectionSample * seaTint + specularLight * sunColor * 1.5 )',
-    );
-  scene.add(water);
-
   // --- Sand -----------------------------------------------------------------------
   const beach = createBeach(scene, renderer, manifest, onLoaded, SUN_DIR);
 
   return {
     sun,
-    water,
     update(dt) {
-      water.material.uniforms.time.value += dt * 0.6;
       beach.update();
+      sea.update(dt, { exposure: LOOK.SKY_EXPOSURE, saturation: LOOK.SKY_SAT, zenith: LOOK.SKY_ZENITH });
       sun.intensity = LOOK.SUN_INTENSITY;
       hemi.intensity = LOOK.HEMI_INTENSITY;
       if (manifest.sky) scene.environmentIntensity = LOOK.ENV_INTENSITY;
@@ -156,9 +129,6 @@ export function createEnvironment(
         u.saturation.value = LOOK.SKY_SAT;
         u.zenith.value = LOOK.SKY_ZENITH;
       }
-    },
-    setWaterResolution(px) {
-      waterTargetSize(water, px);
     },
   };
 }
@@ -281,13 +251,4 @@ function findSunDirection(tex: THREE.DataTexture): THREE.Vector3 {
 /** Yaw (radians) for scene.backgroundRotation that moves direction `from` (in the HDRI) to `to` (in the world). */
 function yawToMatch(from: THREE.Vector3, to: THREE.Vector3): number {
   return Math.atan2(from.z, from.x) - Math.atan2(to.z, to.x);
-}
-
-function waterTargetSize(water: Water, px: number): void {
-  // Water's mirror target is created inside the constructor; find it through the material's sampler.
-  const tex = (water.material as THREE.ShaderMaterial).uniforms.mirrorSampler.value as THREE.Texture & {
-    renderTarget?: THREE.WebGLRenderTarget;
-  };
-  const rt = tex.renderTarget;
-  if (rt) rt.setSize(px, px);
 }

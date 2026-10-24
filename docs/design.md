@@ -14,7 +14,8 @@
 - 使用中: Kenney Nature Kit（CC0, ヤシ・岩・草）、three.js の `waternormals.jpg`（MIT, 海）
 - 空: Poly Haven `kloofendal_48d_partly_cloudy_puresky`（CC0）。砂: Poly Haven `sand_03`、波打ち際の濡れた砂: `damp_beach_sand`（CC0）。`node tools/fetch-assets.mjs`（`--only sky|sand|wetSand`、`--id` で別素材を試せる）で取得し `assets/manifest.json` に記録
 - 素材候補の比較は、サムネイルではなく実際のテクスチャ（色・法線）を取得して見る（cdn.polyhaven.com は許可外）
-- ambientCG はAPI（ambientcg.com）には届くが、ファイル配信元 `acg-media.struffelproductions.com` / `acg-download.struffelproductions.com` が未許可
+- ambientCG: API（ambientcg.com）とファイル配信元 `acg-download.struffelproductions.com` に届く（2026-10-23 確認。プレビュー画像の `acg-media.struffelproductions.com` は届かない）
+- 海の泡: ambientCG `Foam002`（CC0、色・透明度・法線・粗さ）。`--only foam` で取得。Foam001〜003 の透明度マップを比べ、網目がいちばんはっきりした002を選んだ
 - キャラは未定（カプセルで仮置き）。Kenney Mini Characters は頭身・雰囲気が参考画像と違いすぎるため不採用
 - Kenney Nature Kit はローポリ・独特の配色（オレンジの幹・水色の葉）で参考画像に合わない。差し替えるまでの仮置き。glbの色がsRGB値のまま・金属度1で入っているので読み込み時に補正している（`src/render/scene/props.ts`）
 - Quaternius の素材は itch.io / Google ドライブ経由のダウンロードなので、そのドメインの許可も必要
@@ -53,7 +54,7 @@
 - 空の映り込みは鏡（シーンの描き直し）をやめ、HDRIからフレネルで取る（スマホの負荷が下がる）
 - 細かい波は法線マップを大きさ違いで3層重ねて繰り返しを消す（`waternormals.jpg` を流用）
 - 砕ける波は岸と平行な帯状のメッシュで、寄せて砕けて広がるループアニメーション（物理計算はしない）
-- 泡の帯と濡れた砂は「岸からの距離」で決め、ノイズで崩す。泡のテクスチャはCC0素材を探す（未発見。見つからなければユーザーに相談）
+- 泡の帯と濡れた砂は「岸からの距離」で決め、ノイズで崩す。泡の模様は ambientCG `Foam002` の透明度マップを使う
 
 ## 現状と既知の問題（2026-10 時点）
 - 3D表示は実機で元の操作どおり遊べることを確認済み
