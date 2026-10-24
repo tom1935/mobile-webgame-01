@@ -177,6 +177,9 @@ export function createSea(
     lace: { value: 0.35 },
     filmColor: { value: new THREE.Color() },
     filmAlpha: { value: 0.6 },
+    farDetail: { value: 0 },
+    farLayer: { value: 0 },
+    farScale: { value: 400 },
   };
 
   const vertexShader = /* glsl */ `
@@ -216,7 +219,7 @@ export function createSea(
     uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower, glintTilt, crestGlow, foamLight;
     uniform sampler2D normalMap, skyMap, foamMap;
     uniform vec3 sunDir, sunColor, skyFallback, bedColor, deepColor, absorb, crestColor, filmColor;
-    uniform float filmAlpha;
+    uniform float filmAlpha, farDetail, farLayer, farScale;
     varying vec3 vWorld;
     varying vec3 vGeoNormal;
     varying float vWhite, vLift, vFilm;
@@ -238,7 +241,9 @@ export function createSea(
       vec3 a = texture2D(normalMap, s / 7.0 + vec2(0.021, 0.013) * time).xyz * 2.0 - 1.0;
       vec3 b = texture2D(normalMap, mat2(0.8, -0.6, 0.6, 0.8) * s / 19.0 + vec2(-0.011, 0.017) * time).xyz * 2.0 - 1.0;
       vec3 c = texture2D(normalMap, mat2(-0.5, 0.87, -0.87, -0.5) * s / 47.0 + vec2(0.006, -0.008) * time).xyz * 2.0 - 1.0;
-      vec2 xy = (a.xy + b.xy + c.xy) * strength;
+      // A big layer for the far sea, where the small ones blur into flat water.
+      vec3 d = texture2D(normalMap, mat2(0.6, 0.8, -0.8, 0.6) * p / farScale + vec2(-0.003, 0.004) * time).xyz * 2.0 - 1.0;
+      vec2 xy = (a.xy + b.xy + c.xy + d.xy * farLayer) * strength;
       vec3 g = normalize(vGeoNormal);
       return normalize(vec3(g.x / g.y + xy.x, 1.0, g.z / g.y + xy.y));
     }
@@ -252,6 +257,12 @@ export function createSea(
       float dist = length(toCam);
       vec3 V = toCam / dist;
       vec3 N = waterNormal(vWorld.xz, normalStrength);
+
+      // Far sea texture: the sky reflection is weak, so wave slopes barely change the color by themselves;
+      // facets turned toward the camera get lighter, the others darker, more so with distance.
+      vec3 g0 = normalize(vGeoNormal);
+      float tilt = dot(N.xz / N.y - g0.xz / g0.y, normalize(V.xz + 1e-5));
+      float farShade = 1.0 + farDetail * tilt * smoothstep(15.0, 80.0, dist);
 
       // Water body: light from the seabed, absorbed per channel on its way down and up through the water.
       float depth = max(vWorld.y - sandHeight(vWorld.z), 0.0);
@@ -267,7 +278,7 @@ export function createSea(
       float cosV = clamp(dot(N, V), 0.0, 1.0);
       float F = 0.02 + 0.98 * pow(1.0 - cosV, 5.0);
       vec3 R = reflect(-V, N);
-      vec3 col = mix(body, sky(R), clamp(F * reflectAmt, 0.0, 1.0));
+      vec3 col = mix(body * max(farShade, 0.3), sky(R), clamp(F * reflectAmt, 0.0, 1.0));
 
       // Sun glints: the sun is high (~51°), so only steep wave facets reflect it toward the camera;
       // the glints use the same small waves, tilted more (glintTilt).
@@ -355,6 +366,9 @@ export function createSea(
       uniforms.lace.value = LOOK.SEA_LACE;
       uniforms.filmColor.value.set(LOOK.SEA_FILM_COLOR);
       uniforms.filmAlpha.value = LOOK.SEA_FILM_ALPHA;
+      uniforms.farDetail.value = LOOK.SEA_FAR_DETAIL;
+      uniforms.farLayer.value = LOOK.SEA_FAR_LAYER;
+      uniforms.farScale.value = LOOK.SEA_FAR_SCALE;
     },
   };
 }
