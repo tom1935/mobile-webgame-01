@@ -20,12 +20,12 @@ export const DEFAULT_LOOK = {
   SAND_HEIGHT: 0, // relief depth (m) for parallax + self-shadow (0 = off); scales with SAND_TILE
   // Sea (sea.ts). Provisional colors: matched to the reference only after waves and foam exist.
   // Water color = seabed * T + deep * (1 - T), T = exp(-absorb * depth * (1 + viewPath / view angle))
-  SEA_BED: 0xe8d2a6, // seabed (sand) seen through shallow water
-  SEA_BED_GAIN: 1.25, // brightness of the seabed (lit sand is brighter than 1 before tone mapping)
-  SEA_DEEP: 0x0a52b8, // color of deep water (light scattered back by the water itself)
+  SEA_BED: 0xd8eef0, // seabed seen through shallow water (bluish white: a sand color here turns the shallows lime green)
+  SEA_BED_GAIN: 1.15, // brightness of the seabed (lit sand is brighter than 1 before tone mapping)
+  SEA_DEEP: 0x1a74d8, // color of deep water (light scattered back by the water itself)
   SEA_ABSORB_R: 1.0, // absorption per meter, per channel (red goes first -> turquoise, then blue)
-  SEA_ABSORB_G: 0.08,
-  SEA_ABSORB_B: 0.025,
+  SEA_ABSORB_G: 0.06,
+  SEA_ABSORB_B: 0.012,
   SEA_VIEW_PATH: 0.05, // extra light path for slanted views (0 = straight down and up only)
   SEA_REFLECT: 0.15, // sky reflection strength (1 = physical Fresnel)
   SEA_NORMAL: 0.35, // small-wave normal strength
@@ -37,7 +37,7 @@ export const DEFAULT_LOOK = {
   SEA_WAVE_PERIOD: 5.5, // seconds between waves (each wave lives 3x this, from swell to swash)
   SEA_WAVE_H: 0.6, // wave height (m) when it breaks
   SEA_BREAK_DIST: 8, // where it breaks: meters offshore of the still waterline
-  SEA_CREST_COLOR: 0x40e0c0, // sunlight through the thin top of a wave
+  SEA_CREST_COLOR: 0x40c8e8, // sunlight through the thin top of a wave
   SEA_CREST_GLOW: 1.2,
   SEA_FOAM_TILE: 8, // meters per repeat of the foam texture
   SEA_FOAM_LIFT: 0.15, // whitewater height above the water (m)
@@ -45,7 +45,7 @@ export const DEFAULT_LOOK = {
   SEA_FOAM_LEFT: 0.55, // foam left on the water after a wave breaks (0..1 coverage)
   SEA_LACE: 0.35, // lace foam always floating near the shore (0..1 coverage)
   SEA_RUNUP: 4, // how far (m) the swash runs up the sand
-  SEA_FILM_COLOR: 0x8fe6e0, // the swash sheet over the sand (shallow water tint)
+  SEA_FILM_COLOR: 0x9fdcec, // the swash sheet over the sand (shallow water tint)
   SEA_FILM_ALPHA: 0.6, // how much the swash sheet covers the sand
   SEA_WET_REACH: 1.2, // wet sand band above the still waterline (m); wider bands look white (wet sand reflects the sky)
   SEA_FREEZE: -1, // >= 0: stop the sea at this time (s), for comparisons
