@@ -30,6 +30,9 @@ export const DEFAULT_LOOK = {
   SEA_REFLECT: 0.15, // sky reflection strength (1 = physical Fresnel)
   SEA_NORMAL: 0.35, // small-wave normal strength
   SEA_WAVE_SCALE: 1.0, // size of the small waves (2 = twice as big)
+  SEA_FAR_LAYER: 1.0, // strength of the big wave layer that keeps the far sea from looking flat
+  SEA_FAR_SCALE: 600, // size (m) of one repeat of that layer; it must stay bigger than a pixel far out
+  SEA_FAR_DETAIL: 4, // light/dark of wave facets in the far sea (0 = flat color)
   SEA_GLINT: 6.0, // sun glint brightness
   SEA_GLINT_POWER: 600, // sun glint sharpness
   SEA_GLINT_TILT: 4, // how much steeper the waves are for glints (the sun is high, flat water never reflects it)
