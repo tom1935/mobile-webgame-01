@@ -115,7 +115,7 @@ export function createEnvironment(
   return {
     sun,
     update(dt) {
-      beach.setWetReach(LOOK.SEA_RUNUP * 1.1 + 0.3);
+      beach.setWetReach(LOOK.SEA_WET_REACH);
       beach.update();
       sea.update(dt, { exposure: LOOK.SKY_EXPOSURE, saturation: LOOK.SKY_SAT, zenith: LOOK.SKY_ZENITH });
       sun.intensity = LOOK.SUN_INTENSITY;
