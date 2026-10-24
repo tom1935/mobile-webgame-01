@@ -7,7 +7,7 @@
 //   - Sun glints: a sharp specular of the sun on those normals (bloom and depth of field soften them).
 //   - Breaking waves: a dense strip of water along the shore (the surf zone) is lifted by a looping,
 //     scripted wave (no physics): it rises while it travels in, steepens, breaks into whitewater (the
-//     CC0 foam texture as a mask) and runs up to the shore. Two waves are in the loop, half a cycle apart,
+//     CC0 foam texture as a mask) and runs up to the shore. Three waves are in the loop, a third of a cycle apart,
 //     and the timing drifts along the shore so the crest is not one straight line.
 //   - Foam: foam left on the water after a wave breaks (fading), lace foam always floating in the inner
 //     surf zone, and the swash: a thin sheet of water that runs up the sand with a line of foam at its edge.
@@ -93,20 +93,26 @@ float waveAt(float x, float z, float u, out float white, out float foam, out flo
   return hh * shape;
 }
 
-float surfHeight(float x, float z, out float white, out float foam, out float lift) {
-  float u0 = fract(time / (2.0 * wavePeriod) + alongPhase(x));
-  float w0, f0, l0, r0, w1, f1, l1, r1;
-  float h = waveAt(x, z, u0, w0, f0, l0, r0) + waveAt(x, z, fract(u0 + 0.5), w1, f1, l1, r1);
-  white = clamp(max(w0, w1), 0.0, 1.0);
-  lift = clamp(max(l0, l1), 0.0, 1.0);
+// Three waves share the lifecycle, a third apart: one wave every wavePeriod seconds, so the next swell is
+// already on its way in when the previous one breaks.
+float surfHeight(float x, float z, out float white, out float foam, out float lift, out float film) {
+  float u0 = fract(time / (3.0 * wavePeriod) + alongPhase(x));
+  float w0, f0, l0, r0, w1, f1, l1, r1, w2, f2, l2, r2;
+  float h = waveAt(x, z, u0, w0, f0, l0, r0) + waveAt(x, z, fract(u0 + 1.0 / 3.0), w1, f1, l1, r1)
+    + waveAt(x, z, fract(u0 + 2.0 / 3.0), w2, f2, l2, r2);
+  white = clamp(max(w0, max(w1, w2)), 0.0, 1.0);
+  lift = clamp(max(l0, max(l1, l2)), 0.0, 1.0);
   // Lace foam always floats in the inner surf zone, thinning toward the break line.
   float baseLace = lace * smoothstep(zBreak - 1.0, zBreak + 3.0, z);
   // A thin sheet of water covers the sand up to the swash front, which carries a line of foam.
-  float front = max(r0, r1);
+  float front = max(r0, max(r1, r2));
   float sandRel = sandHeight(z) - ${f(SEA_LEVEL)};
-  if (z < front) h = max(h, sandRel + 0.015 + 0.02 * clamp((front - z) / 1.0, 0.0, 1.0));
-  float edge = smoothstep(zShore + 0.1, zShore + 0.6, front) * exp(-pow((z - front + 0.3) / 0.6, 2.0));
-  foam = clamp(max(max(f0, f1), max(baseLace, edge)), 0.0, 1.0);
+  if (z < front) h = max(h, sandRel + 0.02 + 0.04 * clamp((front - z) / 1.5, 0.0, 1.0));
+  float swashOn = smoothstep(zShore + 0.1, zShore + 0.6, front);
+  film = swashOn * smoothstep(zShore - 1.0, zShore, z) * (1.0 - smoothstep(front - 0.2, front, z));
+  float edge = swashOn * exp(-pow((z - front + 0.3) / 0.6, 2.0));
+  // A little foam is carried along inside the sheet too, not only at its edge.
+  foam = clamp(max(max(max(f0, f1), f2), max(max(baseLace, edge), 0.3 * film)), 0.0, 1.0);
   return h;
 }
 `;
@@ -169,6 +175,8 @@ export function createSea(
     runup: { value: 2 },
     residual: { value: 0.7 },
     lace: { value: 0.35 },
+    filmColor: { value: new THREE.Color() },
+    filmAlpha: { value: 0.6 },
   };
 
   const vertexShader = /* glsl */ `
@@ -177,19 +185,21 @@ export function createSea(
     ${WAVE_GLSL}
     varying vec3 vWorld;
     varying vec3 vGeoNormal;
-    varying float vWhite, vLift;
+    varying float vWhite, vLift, vFilm;
     void main() {
       vec4 w = modelMatrix * vec4(position, 1.0);
+      vFilm = 0.0;
       vGeoNormal = vec3(0.0, 1.0, 0.0);
       vWhite = 0.0;
       vLift = 0.0;
       #ifdef SURF
-        float wh, fo, li, a, b, c;
-        float h = surfHeight(w.x, w.z, wh, fo, li);
+        float wh, fo, li, fi, a, b, c, d;
+        float h = surfHeight(w.x, w.z, wh, fo, li, fi);
+        vFilm = fi;
         // Normal from the height's slope (finite differences).
         const float e = 0.12;
-        float hx = surfHeight(w.x + e, w.z, a, b, c);
-        float hz = surfHeight(w.x, w.z + e, a, b, c);
+        float hx = surfHeight(w.x + e, w.z, a, b, c, d);
+        float hz = surfHeight(w.x, w.z + e, a, b, c, d);
         vGeoNormal = normalize(vec3(-(hx - h) / e, 1.0, -(hz - h) / e));
         w.y += h + wh * foamLift; // whitewater on the crest stands a little above the water
         vWhite = max(wh, fo);
@@ -205,10 +215,11 @@ export function createSea(
     uniform float time, hasSky, skyRot, skyExposure, skySat, skyZenith, hasFoam, foamTile;
     uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower, glintTilt, crestGlow, foamLight;
     uniform sampler2D normalMap, skyMap, foamMap;
-    uniform vec3 sunDir, sunColor, skyFallback, bedColor, deepColor, absorb, crestColor;
+    uniform vec3 sunDir, sunColor, skyFallback, bedColor, deepColor, absorb, crestColor, filmColor;
+    uniform float filmAlpha;
     varying vec3 vWorld;
     varying vec3 vGeoNormal;
-    varying float vWhite, vLift;
+    varying float vWhite, vLift, vFilm;
 
     // Same mapping and grade as the sky dome (environment.ts), so the reflection matches the visible sky.
     vec3 sky(vec3 d) {
@@ -263,6 +274,9 @@ export function createSea(
       vec3 Rg = reflect(-V, waterNormal(vWorld.xz, normalStrength * glintTilt));
       col += sunColor * glint * pow(max(dot(Rg, sunDir), 0.0), glintPower);
 
+      // The swash sheet is tinted like shallow water so it reads as water, not just a foam line.
+      col = mix(col, filmColor + sky(R) * 0.25, vFilm * 0.6);
+
       // Whitewater: the foam texture's lace as a mask; more of it shows as the whitewater gets thicker.
       float foamMask = 0.0;
       if (vWhite > 0.001) {
@@ -277,6 +291,8 @@ export function createSea(
       #ifdef SURF
         // Thin water over the sand lets the sand show through; foam stays opaque.
         alpha = max(smoothstep(0.0, 0.25, depth), foamMask);
+        // The swash sheet: a see-through but visible layer of shallow, sky-reflecting water.
+        alpha = max(alpha, vFilm * filmAlpha);
       #endif
       gl_FragColor = vec4(col, alpha);
       #include <tonemapping_fragment>
@@ -337,6 +353,8 @@ export function createSea(
       uniforms.runup.value = LOOK.SEA_RUNUP;
       uniforms.residual.value = LOOK.SEA_FOAM_LEFT;
       uniforms.lace.value = LOOK.SEA_LACE;
+      uniforms.filmColor.value.set(LOOK.SEA_FILM_COLOR);
+      uniforms.filmAlpha.value = LOOK.SEA_FILM_ALPHA;
     },
   };
 }

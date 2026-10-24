@@ -21,20 +21,20 @@ export const DEFAULT_LOOK = {
   // Sea (sea.ts). Provisional colors: matched to the reference only after waves and foam exist.
   // Water color = seabed * T + deep * (1 - T), T = exp(-absorb * depth * (1 + viewPath / view angle))
   SEA_BED: 0xe8d2a6, // seabed (sand) seen through shallow water
-  SEA_BED_GAIN: 1.0, // brightness of the seabed (lit sand is brighter than 1 before tone mapping)
-  SEA_DEEP: 0x0a3c8c, // color of deep water (light scattered back by the water itself)
-  SEA_ABSORB_R: 0.9, // absorption per meter, per channel (red goes first -> turquoise, then blue)
-  SEA_ABSORB_G: 0.18,
-  SEA_ABSORB_B: 0.05,
-  SEA_VIEW_PATH: 0.1, // extra light path for slanted views (0 = straight down and up only)
-  SEA_REFLECT: 0.3, // sky reflection strength (1 = physical Fresnel)
+  SEA_BED_GAIN: 1.25, // brightness of the seabed (lit sand is brighter than 1 before tone mapping)
+  SEA_DEEP: 0x0a52b8, // color of deep water (light scattered back by the water itself)
+  SEA_ABSORB_R: 1.0, // absorption per meter, per channel (red goes first -> turquoise, then blue)
+  SEA_ABSORB_G: 0.08,
+  SEA_ABSORB_B: 0.025,
+  SEA_VIEW_PATH: 0.05, // extra light path for slanted views (0 = straight down and up only)
+  SEA_REFLECT: 0.15, // sky reflection strength (1 = physical Fresnel)
   SEA_NORMAL: 0.35, // small-wave normal strength
   SEA_WAVE_SCALE: 1.0, // size of the small waves (2 = twice as big)
   SEA_GLINT: 6.0, // sun glint brightness
   SEA_GLINT_POWER: 600, // sun glint sharpness
   SEA_GLINT_TILT: 4, // how much steeper the waves are for glints (the sun is high, flat water never reflects it)
   // Breaking waves (scripted loop, no physics)
-  SEA_WAVE_PERIOD: 9, // seconds between waves
+  SEA_WAVE_PERIOD: 5.5, // seconds between waves (each wave lives 3x this, from swell to swash)
   SEA_WAVE_H: 0.6, // wave height (m) when it breaks
   SEA_BREAK_DIST: 8, // where it breaks: meters offshore of the still waterline
   SEA_CREST_COLOR: 0x40e0c0, // sunlight through the thin top of a wave
@@ -45,6 +45,8 @@ export const DEFAULT_LOOK = {
   SEA_FOAM_LEFT: 0.55, // foam left on the water after a wave breaks (0..1 coverage)
   SEA_LACE: 0.35, // lace foam always floating near the shore (0..1 coverage)
   SEA_RUNUP: 4, // how far (m) the swash runs up the sand
+  SEA_FILM_COLOR: 0x8fe6e0, // the swash sheet over the sand (shallow water tint)
+  SEA_FILM_ALPHA: 0.6, // how much the swash sheet covers the sand
   SEA_WET_REACH: 1.2, // wet sand band above the still waterline (m); wider bands look white (wet sand reflects the sky)
   SEA_FREEZE: -1, // >= 0: stop the sea at this time (s), for comparisons
   // Lights (balanced so a sun shadow on the sand is ~0.78x the lit sand, as measured in the reference)
