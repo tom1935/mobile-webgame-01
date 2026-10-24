@@ -30,7 +30,7 @@ const f = (n: number) => n.toFixed(3);
 
 /** Scripted breaking wave (vertex and fragment shaders). */
 const WAVE_GLSL = /* glsl */ `
-uniform float time, wavePeriod, waveH, zShore, zBreak, zStart;
+uniform float time, wavePeriod, waveH, zShore, zBreak, zStart, foamLift;
 // Along the shore the timing and the height drift a little, so the crest is not one straight line.
 float alongPhase(float x) { return 0.05 * sin(x * 0.043 + 1.3) + 0.03 * sin(x * 0.11 + 4.1) + 0.015 * sin(x * 0.29 + 0.7); }
 float alongHeight(float x) { return 1.0 + 0.2 * sin(x * 0.05 + 2.0) + 0.1 * sin(x * 0.15 + 5.0); }
@@ -140,6 +140,8 @@ export function createSea(
     crestColor: { value: new THREE.Color() },
     crestGlow: { value: 0 },
     foamTile: { value: 4 },
+    foamLift: { value: 0.1 },
+    foamLight: { value: 1 },
   };
 
   const vertexShader = /* glsl */ `
@@ -160,7 +162,7 @@ export function createSea(
         float hx = surfHeight(w.x + e, w.z, a, b);
         float hz = surfHeight(w.x, w.z + e, a, b);
         vGeoNormal = normalize(vec3(-(hx - h) / e, 1.0, -(hz - h) / e));
-        w.y += h;
+        w.y += h + wh * foamLift; // whitewater stands a little above the water
         vWhite = wh;
         vLift = li;
       #endif
@@ -172,7 +174,7 @@ export function createSea(
     #include <common>
     ${SAND_HEIGHT_GLSL}
     uniform float time, hasSky, skyRot, skyExposure, skySat, skyZenith, hasFoam, foamTile;
-    uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower, glintTilt, crestGlow;
+    uniform float viewPath, reflectAmt, normalStrength, waveScale, glint, glintPower, glintTilt, crestGlow, foamLight;
     uniform sampler2D normalMap, skyMap, foamMap;
     uniform vec3 sunDir, sunColor, skyFallback, bedColor, deepColor, absorb, crestColor;
     varying vec3 vWorld;
@@ -217,7 +219,9 @@ export function createSea(
       vec3 T = exp(-absorb * path);
       vec3 body = bedColor * T + deepColor * (1.0 - T);
       // The thin top of a wave lets the sunlight through: brighter blue-green.
-      body += crestColor * crestGlow * vLift * vLift;
+      // Strongest on the face turned toward the shore (and the camera), where the water is thinnest.
+      float face = 0.4 + 0.6 * clamp(normalize(vGeoNormal).z * 3.0, 0.0, 1.0);
+      body += crestColor * crestGlow * vLift * face;
 
       // Sky reflection (Schlick Fresnel, F0 = 0.02), scaled for the stylized look.
       float cosV = clamp(dot(N, V), 0.0, 1.0);
@@ -233,8 +237,8 @@ export function createSea(
       // Whitewater: the foam texture's lace as a mask; more of it shows as the whitewater gets thicker.
       if (vWhite > 0.001) {
         float pattern = hasFoam > 0.5 ? texture2D(foamMap, vWorld.xz / foamTile + vec2(0.0, -0.05) * time).r : 0.5;
-        float mask = clamp((pattern - (1.0 - vWhite) * 0.9) / 0.15, 0.0, 1.0) * smoothstep(0.0, 0.15, vWhite);
-        vec3 lit = sunColor * (0.55 + 0.6 * max(dot(normalize(vGeoNormal), sunDir), 0.0));
+        float mask = clamp((pattern - (1.0 - vWhite) * 0.7) / 0.15, 0.0, 1.0) * smoothstep(0.0, 0.15, vWhite);
+        vec3 lit = vec3(foamLight) * (0.7 + 0.5 * max(dot(normalize(vGeoNormal), sunDir), 0.0));
         col = mix(col, lit, mask);
       }
 
@@ -292,6 +296,8 @@ export function createSea(
       uniforms.crestColor.value.set(LOOK.SEA_CREST_COLOR);
       uniforms.crestGlow.value = LOOK.SEA_CREST_GLOW;
       uniforms.foamTile.value = LOOK.SEA_FOAM_TILE;
+      uniforms.foamLift.value = LOOK.SEA_FOAM_LIFT;
+      uniforms.foamLight.value = LOOK.SEA_FOAM_LIGHT;
     },
   };
 }
