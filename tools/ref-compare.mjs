@@ -9,7 +9,9 @@
 // --profile also prints a row-by-row profile of the sea band (horizon to sand), reference vs render:
 // mean color, luminance and the brightest 10% (whitecaps / foam) of each row.
 // The sea is stopped at a fixed moment (SEA_FREEZE) unless --look sets it.
-// --times 0,3,6 also writes frames.png: the sea band at those moments (SEA_FREEZE seconds), stacked, to check the motion.
+// --times 0,3,6 also writes frames.png: the sea band at those moments (SEA_FREEZE seconds), stacked, to check the motion,
+// and prints how much the sea band changes between consecutive moments (mean |diff| 0-255); with evenly spaced
+// times a spike means the motion jumps (a stutter).
 // Uses the global playwright (same as tests-e2e/play.mjs) and SwiftShader WebGL.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -49,7 +51,7 @@ try {
       await setLook(page, { SEA_FREEZE: t });
       shots.push((await measure(page, { images: true })).images.render);
     }
-    const url = await page.evaluate(
+    const { url, diffs } = await page.evaluate(
       ({ shots, band }) =>
         Promise.all(shots.map((src) => new Promise((ok) => Object.assign(new Image(), { onload: (e) => ok(e.target), src })))).then((ims) => {
           const w = ims[0].width;
@@ -59,11 +61,20 @@ try {
           g.fillStyle = '#fff';
           g.fillRect(0, 0, c.width, c.height);
           ims.forEach((im, i) => g.drawImage(im, 0, band[0], w, h, 0, i * (h + 4), w, h));
-          return c.toDataURL('image/png');
+          const px = ims.map((_, i) => g.getImageData(0, i * (h + 4), w, h).data);
+          const diffs = px.slice(1).map((d, i) => {
+            let s = 0;
+            for (let k = 0; k < d.length; k += 4) s += Math.abs(d[k] - px[i][k]) + Math.abs(d[k + 1] - px[i][k + 1]) + Math.abs(d[k + 2] - px[i][k + 2]);
+            return s / (d.length / 4) / 3;
+          });
+          return { url: c.toDataURL('image/png'), diffs };
         }),
       { shots, band: SEA_BAND },
     );
     writeFileSync(join(out, 'frames.png'), Buffer.from(url.split(',')[1], 'base64'));
+    const ts = times.split(',');
+    console.log('change between moments:');
+    diffs.forEach((d, i) => console.log(`  ${ts[i]} -> ${ts[i + 1]}: ${d.toFixed(2)}`));
     console.log(`wrote ${out}/frames.png (t = ${times})`);
   }
 } finally {
