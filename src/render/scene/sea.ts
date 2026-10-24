@@ -105,7 +105,7 @@ float surfHeight(float x, float z, out float white, out float foam, out float li
   float front = max(r0, r1);
   float sandRel = sandHeight(z) - ${f(SEA_LEVEL)};
   if (z < front) h = max(h, sandRel + 0.015 + 0.02 * clamp((front - z) / 1.0, 0.0, 1.0));
-  float edge = smoothstep(zShore + 0.1, zShore + 0.6, front) * exp(-pow((z - front + 0.2) / 0.35, 2.0));
+  float edge = smoothstep(zShore + 0.1, zShore + 0.6, front) * exp(-pow((z - front + 0.3) / 0.6, 2.0));
   foam = clamp(max(max(f0, f1), max(baseLace, edge)), 0.0, 1.0);
   return h;
 }
