@@ -39,12 +39,12 @@ export const DEFAULT_LOOK = {
   SEA_BREAK_DIST: 8, // where it breaks: meters offshore of the still waterline
   SEA_CREST_COLOR: 0x40e0c0, // sunlight through the thin top of a wave
   SEA_CREST_GLOW: 1.2,
-  SEA_FOAM_TILE: 4, // meters per repeat of the foam texture
+  SEA_FOAM_TILE: 8, // meters per repeat of the foam texture
   SEA_FOAM_LIFT: 0.15, // whitewater height above the water (m)
   SEA_FOAM_LIGHT: 1.1, // whitewater brightness
-  SEA_FOAM_LEFT: 0.75, // foam left on the water after a wave breaks (0..1 coverage)
-  SEA_LACE: 0.4, // lace foam always floating near the shore (0..1 coverage)
-  SEA_RUNUP: 2.5, // how far (m) the swash runs up the sand; the wet sand band follows it
+  SEA_FOAM_LEFT: 0.9, // foam left on the water after a wave breaks (0..1 coverage)
+  SEA_LACE: 0.6, // lace foam always floating near the shore (0..1 coverage)
+  SEA_RUNUP: 4, // how far (m) the swash runs up the sand; the wet sand band follows it
   SEA_FREEZE: -1, // >= 0: stop the sea at this time (s), for comparisons
   // Lights (balanced so a sun shadow on the sand is ~0.78x the lit sand, as measured in the reference)
   SUN_INTENSITY: 3.6,
