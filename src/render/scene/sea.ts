@@ -9,6 +9,8 @@
 //     scripted wave (no physics): it rises while it travels in, steepens, breaks into whitewater (the
 //     CC0 foam texture as a mask) and runs up to the shore. Two waves are in the loop, half a cycle apart,
 //     and the timing drifts along the shore so the crest is not one straight line.
+//   - Foam: foam left on the water after a wave breaks (fading), lace foam always floating in the inner
+//     surf zone, and the swash: a thin sheet of water that runs up the sand with a line of foam at its edge.
 //     The far sea is a big flat plane that leaves a hole where the strip is.
 import * as THREE from 'three';
 import { LOOK } from '../look.ts';
@@ -30,7 +32,7 @@ const f = (n: number) => n.toFixed(3);
 
 /** Scripted breaking wave (vertex and fragment shaders). */
 const WAVE_GLSL = /* glsl */ `
-uniform float time, wavePeriod, waveH, zShore, zBreak, zStart, foamLift;
+uniform float time, wavePeriod, waveH, zShore, zBreak, zStart, foamLift, runup, residual, lace;
 // Along the shore the timing and the height drift a little, so the crest is not one straight line.
 float alongPhase(float x) { return 0.05 * sin(x * 0.043 + 1.3) + 0.03 * sin(x * 0.11 + 4.1) + 0.015 * sin(x * 0.29 + 0.7); }
 float alongHeight(float x) { return 1.0 + 0.2 * sin(x * 0.05 + 2.0) + 0.1 * sin(x * 0.15 + 5.0); }
@@ -38,10 +40,13 @@ float alongHeight(float x) { return 1.0 + 0.2 * sin(x * 0.05 + 2.0) + 0.1 * sin(
 const float U_BREAK = 0.45; // share of the cycle spent rising and travelling in, before it breaks
 const float U_SHORE = 0.75; // the broken wave (bore) reaches the shore; then it settles
 
-// One wave at lifecycle u (0..1). Returns the height above sea level; whitewater 0..1; lift 0..1 (thin lit crest).
+// One wave at lifecycle u (0..1). Returns the height above sea level; whitewater on the crest 0..1;
+// foam left on the water 0..1; lift 0..1 (thin lit crest); front: how far up the beach the water runs (z).
 // Everything changes continuously across the stages (a jump shows up as a stutter in the motion).
-float waveAt(float x, float z, float u, out float white, out float lift) {
+float waveAt(float x, float z, float u, out float white, out float foam, out float lift, out float front) {
   float zc, hh, wf, wb, broken, lip;
+  float left = 0.0; // foam left behind on the water (fades out before the wave comes round again)
+  front = zShore;
   if (u < U_BREAK) {
     float s = u / U_BREAK;
     zc = mix(zStart, zBreak, s);
@@ -61,6 +66,7 @@ float waveAt(float x, float z, float u, out float white, out float lift) {
     wb = mix(3.0, 5.0, s);
     broken = smoothstep(0.0, 0.2, s) * (1.0 - 0.4 * s); // whitewater grows out of the spilling lip
     lip = 1.0 - smoothstep(0.0, 0.2, s);
+    left = smoothstep(0.0, 0.3, s);
   } else {
     float s = (u - U_SHORE) / (1.0 - U_SHORE);
     zc = zShore + 0.5 * s;
@@ -69,6 +75,9 @@ float waveAt(float x, float z, float u, out float white, out float lift) {
     wb = 5.0;
     broken = 0.6 * (1.0 - s);
     lip = 0.0;
+    left = 1.0 - s;
+    // Swash: the spent wave runs up the beach and slides back.
+    front = zShore + runup * alongHeight(x) * sin(PI * s);
   }
   hh *= alongHeight(x);
   float d = z - zc; // > 0: shoreward of the crest
@@ -78,15 +87,26 @@ float waveAt(float x, float z, float u, out float white, out float lift) {
   // Whitewater rides on the crest and trails behind it (the back of the broken wave stays churned up).
   float behind = d < 0.0 ? exp(d / 3.0) : exp(-pow(d / 0.8, 2.0));
   white = broken * behind + lip * exp(-pow((d - 0.1) / 0.6, 2.0));
+  // Foam left on the water between the break line and the crest that passed (or the shore).
+  float zone = smoothstep(zBreak - 2.0, zBreak + 1.0, z) * (1.0 - smoothstep(min(zc, zShore) - 0.5, min(zc, zShore) + 0.5, z));
+  foam = residual * left * zone;
   return hh * shape;
 }
 
-float surfHeight(float x, float z, out float white, out float lift) {
+float surfHeight(float x, float z, out float white, out float foam, out float lift) {
   float u0 = fract(time / (2.0 * wavePeriod) + alongPhase(x));
-  float w0, l0, w1, l1;
-  float h = waveAt(x, z, u0, w0, l0) + waveAt(x, z, fract(u0 + 0.5), w1, l1);
+  float w0, f0, l0, r0, w1, f1, l1, r1;
+  float h = waveAt(x, z, u0, w0, f0, l0, r0) + waveAt(x, z, fract(u0 + 0.5), w1, f1, l1, r1);
   white = clamp(max(w0, w1), 0.0, 1.0);
   lift = clamp(max(l0, l1), 0.0, 1.0);
+  // Lace foam always floats in the inner surf zone, thinning toward the break line.
+  float baseLace = lace * smoothstep(zBreak - 1.0, zBreak + 3.0, z);
+  // A thin sheet of water covers the sand up to the swash front, which carries a line of foam.
+  float front = max(r0, r1);
+  float sandRel = sandHeight(z) - ${f(SEA_LEVEL)};
+  if (z < front) h = max(h, sandRel + 0.015 + 0.02 * clamp((front - z) / 1.0, 0.0, 1.0));
+  float edge = smoothstep(zShore + 0.1, zShore + 0.6, front) * exp(-pow((z - front + 0.2) / 0.35, 2.0));
+  foam = clamp(max(max(f0, f1), max(baseLace, edge)), 0.0, 1.0);
   return h;
 }
 `;
@@ -146,9 +166,14 @@ export function createSea(
     foamTile: { value: 4 },
     foamLift: { value: 0.1 },
     foamLight: { value: 1 },
+    runup: { value: 2 },
+    residual: { value: 0.7 },
+    lace: { value: 0.35 },
   };
 
   const vertexShader = /* glsl */ `
+    #include <common>
+    ${SAND_HEIGHT_GLSL}
     ${WAVE_GLSL}
     varying vec3 vWorld;
     varying vec3 vGeoNormal;
@@ -159,15 +184,15 @@ export function createSea(
       vWhite = 0.0;
       vLift = 0.0;
       #ifdef SURF
-        float wh, li, a, b;
-        float h = surfHeight(w.x, w.z, wh, li);
+        float wh, fo, li, a, b, c;
+        float h = surfHeight(w.x, w.z, wh, fo, li);
         // Normal from the height's slope (finite differences).
         const float e = 0.12;
-        float hx = surfHeight(w.x + e, w.z, a, b);
-        float hz = surfHeight(w.x, w.z + e, a, b);
+        float hx = surfHeight(w.x + e, w.z, a, b, c);
+        float hz = surfHeight(w.x, w.z + e, a, b, c);
         vGeoNormal = normalize(vec3(-(hx - h) / e, 1.0, -(hz - h) / e));
-        w.y += h + wh * foamLift; // whitewater stands a little above the water
-        vWhite = wh;
+        w.y += h + wh * foamLift; // whitewater on the crest stands a little above the water
+        vWhite = max(wh, fo);
         vLift = li;
       #endif
       vWorld = w.xyz;
@@ -239,14 +264,21 @@ export function createSea(
       col += sunColor * glint * pow(max(dot(Rg, sunDir), 0.0), glintPower);
 
       // Whitewater: the foam texture's lace as a mask; more of it shows as the whitewater gets thicker.
+      float foamMask = 0.0;
       if (vWhite > 0.001) {
         float pattern = hasFoam > 0.5 ? texture2D(foamMap, vWorld.xz / foamTile + vec2(0.0, -0.05) * time).r : 0.5;
         float mask = clamp((pattern - (1.0 - vWhite) * 0.7) / 0.15, 0.0, 1.0) * smoothstep(0.0, 0.15, vWhite);
+        foamMask = mask;
         vec3 lit = vec3(foamLight) * (0.7 + 0.5 * max(dot(normalize(vGeoNormal), sunDir), 0.0));
         col = mix(col, lit, mask);
       }
 
-      gl_FragColor = vec4(col, 1.0);
+      float alpha = 1.0;
+      #ifdef SURF
+        // Thin water over the sand lets the sand show through; foam stays opaque.
+        alpha = max(smoothstep(0.0, 0.25, depth), foamMask);
+      #endif
+      gl_FragColor = vec4(col, alpha);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     }`;
@@ -266,7 +298,7 @@ export function createSea(
   stripGeo.translate(0, 0, (STRIP_Z0 + STRIP_Z1) / 2);
   const strip = new THREE.Mesh(
     stripGeo,
-    new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, defines: { SURF: '' }, fog: false }),
+    new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader, defines: { SURF: '' }, fog: false, transparent: true }),
   );
   strip.position.y = SEA_LEVEL;
   strip.frustumCulled = false; // vertices move up in the shader
@@ -302,6 +334,9 @@ export function createSea(
       uniforms.foamTile.value = LOOK.SEA_FOAM_TILE;
       uniforms.foamLift.value = LOOK.SEA_FOAM_LIFT;
       uniforms.foamLight.value = LOOK.SEA_FOAM_LIGHT;
+      uniforms.runup.value = LOOK.SEA_RUNUP;
+      uniforms.residual.value = LOOK.SEA_FOAM_LEFT;
+      uniforms.lace.value = LOOK.SEA_LACE;
     },
   };
 }
