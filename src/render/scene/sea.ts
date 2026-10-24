@@ -39,6 +39,7 @@ const float U_BREAK = 0.45; // share of the cycle spent rising and travelling in
 const float U_SHORE = 0.75; // the broken wave (bore) reaches the shore; then it settles
 
 // One wave at lifecycle u (0..1). Returns the height above sea level; whitewater 0..1; lift 0..1 (thin lit crest).
+// Everything changes continuously across the stages (a jump shows up as a stutter in the motion).
 float waveAt(float x, float z, float u, out float white, out float lift) {
   float zc, hh, wf, wb, broken, lip;
   if (u < U_BREAK) {
@@ -48,15 +49,18 @@ float waveAt(float x, float z, float u, out float white, out float lift) {
     wf = mix(3.5, 0.6, s * s * s); // the front steepens
     wb = mix(5.0, 3.0, s);
     broken = 0.0;
-    lip = pow(s, 10.0); // a thin spill at the top just before it breaks
+    lip = smoothstep(0.8, 1.0, s); // the top starts to spill just before it breaks
   } else if (u < U_SHORE) {
     float s = (u - U_BREAK) / (U_SHORE - U_BREAK);
-    zc = mix(zBreak, zShore, s);
-    hh = waveH * mix(0.75, 0.15, s);
+    // Hermite ease: leaves the break line at the incoming speed, slows to the settling speed at the shore.
+    float v1 = (0.5 / (1.0 - U_SHORE)) * (U_SHORE - U_BREAK) / max(zShore - zBreak, 0.1);
+    float e = (s * s * s - 2.0 * s * s + s) + (-2.0 * s * s * s + 3.0 * s * s) + (s * s * s - s * s) * v1;
+    zc = mix(zBreak, zShore, e);
+    hh = waveH * mix(1.0, 0.15, 1.0 - (1.0 - s) * (1.0 - s));
     wf = mix(0.6, 1.2, s);
     wb = mix(3.0, 5.0, s);
-    broken = 1.0 - 0.4 * s;
-    lip = 0.0;
+    broken = smoothstep(0.0, 0.2, s) * (1.0 - 0.4 * s); // whitewater grows out of the spilling lip
+    lip = 1.0 - smoothstep(0.0, 0.2, s);
   } else {
     float s = (u - U_SHORE) / (1.0 - U_SHORE);
     zc = zShore + 0.5 * s;
